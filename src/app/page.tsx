@@ -31,7 +31,7 @@ export default function HomePage() {
         fontFamily: "Cinzel, serif",
         fontSize: "clamp(13px, 2vw, 16px)",
         letterSpacing: "0.32em",
-        color: "rgba(212,175,55,0.6)",
+color: "rgba(255,255,255,0.5)",
         textTransform: "uppercase",
         marginBottom: "32px",
       }}>

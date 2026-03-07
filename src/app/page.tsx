@@ -1,65 +1,113 @@
-import Image from "next/image";
+import Link from "next/link";
+import Masthead from "@/components/Masthead";
+import Footer from "@/components/Footer";
 
-export default function Home() {
+const FEATURED = {
+  slug: "ai-infrastructure-power-shift",
+  title: "AI Infrastructure Power Shift",
+  published: "June 6, 2024",
+  domain: "Geopolitics",
+  confidence: "Medium",
+  lead: "Compute is consolidating into a small number of jurisdictions and hyperscale operators. That consolidation is becoming a strategic lever — comparable to energy chokepoints — with downstream impacts on policy, trade, and security.",
+};
+
+const RECENT = [
+  {
+    slug: "ai-infrastructure-power-shift",
+    title: "AI Infrastructure Power Shift",
+    published: "June 6, 2024",
+    domain: "Geopolitics",
+    desc: "Compute concentration is becoming a state-level strategic lever.",
+  },
+  {
+    slug: "structural-signals-ai-infrastructure",
+    title: "Structural Signals Behind Global AI Infrastructure Consolidation",
+    published: "June 13, 2024",
+    domain: "Technology Systems",
+    desc: "Indicators of sovereign compute blocs forming across policy, capital, and supply chains.",
+  },
+];
+
+export default function HomePage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <>
+      <a className="skip-link" href="#main">Skip to content</a>
+      <Masthead />
+
+      <main id="main" className="page">
+        <section className="section container">
+          <div className="section-title">
+            <span className="rule" />
+            <span className="label">LATEST BRIEF</span>
+            <span className="rule" />
+          </div>
+
+          <article className="card featured">
+            <h2 className="featured-title">{FEATURED.title}</h2>
+            <div className="meta">
+              <span className="meta-item">Published: {FEATURED.published}</span>
+              <span className="meta-dot" />
+              <span className="meta-item">Domain: {FEATURED.domain}</span>
+              <span className="meta-dot" />
+              <span className="meta-item">Confidence: {FEATURED.confidence}</span>
+            </div>
+            <p className="lead">{FEATURED.lead}</p>
+            <div className="cta-row">
+              <Link className="btn" href={`/briefs/${FEATURED.slug}`}>
+                Read Brief <span className="arrow">→</span>
+              </Link>
+              <Link className="btn-light" href="/briefs">All Briefs</Link>
+            </div>
+          </article>
+        </section>
+
+        <section className="section container">
+          <div className="section-title">
+            <span className="rule" />
+            <span className="label">RECENT BRIEFS</span>
+            <span className="rule" />
+          </div>
+
+          <div className="brief-list" role="list">
+            {RECENT.map((brief) => (
+              <article key={brief.slug} className="brief-row" role="listitem">
+                <div className="brief-main">
+                  <h3 className="brief-title">
+                    <Link href={`/briefs/${brief.slug}`}>{brief.title}</Link>
+                  </h3>
+                  <div className="meta">
+                    <span className="meta-item">Published: {brief.published}</span>
+                    <span className="meta-dot" />
+                    <span className="meta-item">Domain: {brief.domain}</span>
+                  </div>
+                  <p className="brief-desc">{brief.desc}</p>
+                </div>
+                <div className="brief-action">
+                  <Link className="read" href={`/briefs/${brief.slug}`}>
+                    Read <span className="arrow">→</span>
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="section container">
+          <div className="mini-links">
+            <Link href="/briefs">Briefs</Link>
+            <span className="sep">·</span>
+            <Link href="/categories">Categories</Link>
+            <span className="sep">·</span>
+            <Link href="/about">About</Link>
+            <span className="sep">·</span>
+            <Link href="/method">Method</Link>
+            <span className="sep">·</span>
+            <Link href="/contact">Contact</Link>
+          </div>
+        </section>
       </main>
-    </div>
+
+      <Footer />
+    </>
   );
 }

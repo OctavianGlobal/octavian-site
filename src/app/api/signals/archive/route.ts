@@ -1,13 +1,12 @@
 // ============================================================
 // src/app/api/signals/archive/route.ts
 // Octavian Global — Archive signals (published → archived)
-// Also handles bulk archive queries for the archive browser
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient, createServerSupabaseClient } from '@/lib/supabase'
 import { getUser, getSubscriptionTier, getTierPermissions } from '@/lib/auth'
-import type { SignalDomain } from '@/types/supabase'
+import type { Signal, SignalDomain } from '@/types/supabase'
 
 const PIPELINE_SECRET = process.env.PIPELINE_SECRET
 
@@ -34,12 +33,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { signal_id, signal_ids } = body // single or bulk
+    const { signal_id, signal_ids } = body
 
     const supabase = createServiceClient()
     const now = new Date().toISOString()
 
-    // Bulk archive
     if (signal_ids && Array.isArray(signal_ids)) {
       const { data, error } = await supabase
         .from('signals')
@@ -53,20 +51,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Bulk archive failed' }, { status: 500 })
       }
 
+      const rows = data as Pick<Signal, 'id' | 'title'>[] | null
+
       return NextResponse.json({
         success: true,
-        archived_count: data?.length ?? 0,
-        archived: data,
+        archived_count: rows?.length ?? 0,
+        archived: rows,
       })
     }
 
-    // Single archive
     if (signal_id) {
       const { data, error } = await supabase
         .from('signals')
         .update({ status: 'archived', archived_at: now, updated_at: now })
         .eq('id', signal_id)
-        .eq('status', 'published') // can only archive published signals
+        .eq('status', 'published')
         .select()
         .single()
 
@@ -77,7 +76,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      return NextResponse.json({ success: true, signal: data })
+      return NextResponse.json({ success: true, signal: data as Signal })
     }
 
     return NextResponse.json(
@@ -91,7 +90,6 @@ export async function POST(request: NextRequest) {
 }
 
 // ── GET — Browse the archive (paid subscribers) ────────────
-// /api/signals/archive?domain=POWER&entity=China&limit=20&offset=0
 export async function GET(request: NextRequest) {
   try {
     const tier = await getSubscriptionTier()
@@ -110,7 +108,6 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const domain = searchParams.get('domain') as SignalDomain | null
-    const entity = searchParams.get('entity')
     const search = searchParams.get('q')
     const limit = Math.min(parseInt(searchParams.get('limit') ?? '20'), 50)
     const offset = parseInt(searchParams.get('offset') ?? '0')
@@ -129,7 +126,6 @@ export async function GET(request: NextRequest) {
     if (domain) query = query.eq('domain', domain)
     if (search) query = query.textSearch('title', search, { type: 'websearch' })
 
-    // Date restriction based on tier
     if (perms.archiveDaysBack !== 'unlimited') {
       const cutoff = new Date()
       cutoff.setDate(cutoff.getDate() - perms.archiveDaysBack)
@@ -143,7 +139,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Archive query failed' }, { status: 500 })
     }
 
-    const signals = (data ?? []).map((s) => ({
+    const rows = data as Pick<Signal,
+      'id' | 'title' | 'slug' | 'domain' | 'impact' |
+      'score' | 'confidence' | 'published_at' | 'archived_at' | 'summary'
+    >[] | null
+
+    const signals = (rows ?? []).map((s) => ({
       ...s,
       score: perms.canViewScores ? s.score : null,
       confidence: perms.canViewConfidence ? s.confidence : null,

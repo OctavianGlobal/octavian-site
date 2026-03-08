@@ -35,13 +35,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { signal_id, signal_ids } = body
 
-    const supabase = createServiceClient()
+  const supabase = createServiceClient() as any
     const now = new Date().toISOString()
+    const updatePayload = { status: 'archived', archived_at: now, updated_at: now } as any
 
     if (signal_ids && Array.isArray(signal_ids)) {
       const { data, error } = await supabase
         .from('signals')
-        .update({ status: 'archived', archived_at: now, updated_at: now })
+        .update(updatePayload)
         .in('id', signal_ids)
         .eq('status', 'published')
         .select('id, title')
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     if (signal_id) {
       const { data, error } = await supabase
         .from('signals')
-        .update({ status: 'archived', archived_at: now, updated_at: now })
+        .update(updatePayload)
         .eq('id', signal_id)
         .eq('status', 'published')
         .select()

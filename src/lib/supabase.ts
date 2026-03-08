@@ -1,16 +1,14 @@
 // ============================================================
 // src/lib/supabase.ts
 // Octavian Global — Supabase client factory
-// Exports: browser client, server client (RSC), middleware client
 // ============================================================
 
-import { createBrowserClient } from '@supabase/ssr'
-import { createServerClient } from '@supabase/ssr'
+import { createBrowserClient, createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import type { Database } from '@/types/supabase'
 
-// ── Env validation ─────────────────────────────────────────
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
@@ -21,13 +19,10 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   )
 }
 
-// ── Browser client (singleton, use in Client Components) ──
 export function createClient() {
   return createBrowserClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY)
 }
 
-// ── Server client (use in Server Components, Route Handlers, Server Actions) ──
-// Cookie-based session — requires await cookies() in Next.js 15
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies()
 
@@ -42,14 +37,13 @@ export async function createServerSupabaseClient() {
             cookieStore.set(name, value, options)
           )
         } catch {
-          // Called from Server Component — cookie mutation is handled by middleware
+          // Server Component — cookie mutation handled by middleware
         }
       },
     },
   })
 }
 
-// ── Middleware client (use in middleware.ts) ──
 export function createMiddlewareClient(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -71,8 +65,6 @@ export function createMiddlewareClient(request: NextRequest) {
   return { supabase, supabaseResponse }
 }
 
-// ── Service role client (server-only, never expose to client) ──
-// Use ONLY in API routes that need to bypass RLS (e.g., signals/publish)
 export function createServiceClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -83,9 +75,6 @@ export function createServiceClient() {
     )
   }
 
-  // Import createClient from @supabase/supabase-js for service role
-  // (not from SSR package — service role doesn't need cookie handling)
-  const { createClient: createSupabaseClient } = require('@supabase/supabase-js')
   return createSupabaseClient<Database>(SUPABASE_URL, serviceKey, {
     auth: {
       autoRefreshToken: false,

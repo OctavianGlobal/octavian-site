@@ -317,9 +317,9 @@ a:hover { text-decoration: underline; }
 
 /* ── Signal Queue ────────────────────────────────────────────── */
 .queue-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 18px;
+  display: flex !important;
+  align-items: flex-start;
+  gap: 12px;
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -470,7 +470,7 @@ textarea { min-height: 140px; resize: vertical; }
 }
 .dash-nav-link:hover { background: rgba(255,255,255,0.08); color: #ffffff; text-decoration: none; }
 .dash-nav-link.active { background: rgba(212,175,55,0.15); color: var(--gold); }
-.dash-main { padding: 32px; background: var(--paper); }
+.dash-main { padding: 32px; background: var(--paper); overflow: hidden; }
 .dash-header {
   display: flex;
   align-items: center;
@@ -528,7 +528,7 @@ textarea { min-height: 140px; resize: vertical; }
   .dash-shell { grid-template-columns: 1fr; }
   .dash-sidebar { display: none; }
   .dash-main { padding: 20px; }
-  .queue-row { grid-template-columns: 1fr; }
+ .queue-row { flex-direction: column; }
   .tagline { font-size: 20px; }
   .subtag { font-size: 13px; }
 }

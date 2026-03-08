@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cinzel, Inter } from "next/font/google";
 import "./globals.css";
+import StickyNav from "@/components/StickyNav";
 
 const cinzel = Cinzel({
   variable: "--font-cinzel",
@@ -32,6 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${cinzel.variable} ${inter.variable}`}>
+        <StickyNav />
         {children}
       </body>
     </html>

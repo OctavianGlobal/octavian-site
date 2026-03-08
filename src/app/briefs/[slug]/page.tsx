@@ -181,4 +181,4 @@ export default async function BriefPage({ params }: Props) {
       <Footer />
     </>
   );
-}
+} 

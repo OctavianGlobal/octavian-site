@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if email already exists using service client
-    const service = createServiceClient()
+    const service = createServiceClient() as any
     const { data: existing } = await service
       .from('profiles')
       .select('id')

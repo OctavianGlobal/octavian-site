@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       signal,        // OR create + publish in one operation (from pipeline)
     } = body
 
-    const supabase = createServiceClient() // service role bypasses RLS
+    const supabase = createServiceClient() as any// service role bypasses RLS
 
     // ── Publish existing draft ────────────────────────────
     if (signal_id) {

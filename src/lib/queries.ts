@@ -189,7 +189,7 @@ export async function getDashboardData() {
   const tier = await getSubscriptionTier()
   const perms = getTierPermissions(tier)
 
-  const { data, error } = await supabase
+const { data, error } = await supabase
     .from('signals')
     .select(`
       id,
@@ -200,19 +200,20 @@ export async function getDashboardData() {
         id,
         cluster_summary,
         top_entities_jsonb,
-        top_tags_jsonb
-      ),
-      cluster_scores (
-        power_score,
-        money_score,
-        rules_score,
-        signal_score_raw,
-        ai_confidence
+        top_tags_jsonb,
+        cluster_scores (
+          power_score,
+          money_score,
+          rules_score,
+          signal_score_raw,
+          ai_confidence
+        )
       )
     `)
     .eq('status', 'candidate')
     .order('created_at', { ascending: false })
     .limit(20)
+
 
   if (error) {
     console.error('[getDashboardData]', error.message)

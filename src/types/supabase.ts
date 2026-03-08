@@ -11,7 +11,7 @@ export type SubscriptionTier =
   | 'institutional'
   | 'private_briefing'
 
-export type SignalStatus = 'draft' | 'published' | 'archived'
+export type SignalStatus = 'draft' | 'candidate' | 'published' | 'archived'
 export type SignalDomain = 'POWER' | 'MONEY' | 'RULES'
 export type ImpactLevel = 'low' | 'medium' | 'high' | 'critical'
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'inactive' | null

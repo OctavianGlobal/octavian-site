@@ -193,7 +193,7 @@ export async function getDashboardData() {
     supabase
       .from('signals')
       .select('id, title, slug, domain, impact, score, confidence, published_at, summary, status, created_at')
-      .eq('status', 'draft')
+      .eq('status', 'candidate')
       .order('created_at', { ascending: false })
       .limit(20),
 

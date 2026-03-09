@@ -27,10 +27,10 @@ export default async function BriefsPage() {
               <p>No briefs published yet.</p>
             )}
             {signals.map((signal) => (
-              <article key={signal.slug} className="brief-row" role="listitem">
+              <article key={signal.id} className="brief-row" role="listitem">
                 <div className="brief-main">
                   <h3 className="brief-title">
-                    <Link href={`/briefs/${signal.slug}`}>{signal.title}</Link>
+                    <Link href={`/briefs/${signal.id}`}>{signal.title}</Link>
                   </h3>
                   <div className="meta">
                     <span className="meta-item">

@@ -58,7 +58,7 @@ export async function getDashboardData() {
 
   const recentSignals: DashboardSignal[] = rows.map((s) => {
     const cluster = s.clusters ?? {}
-    const scores = cluster.cluster_scores ?? {}
+    const scores = Array.isArray(cluster.cluster_scores) ? (cluster.cluster_scores[0] ?? {}) : (cluster.cluster_scores ?? {})
 
     const rawScore = scores.signal_score_raw ?? null
     const rawConfidence = scores.ai_confidence ?? null
@@ -139,7 +139,7 @@ export async function getSignalForReview(id: string) {
 
   const s = data as any
   const cluster = s.clusters ?? {}
-  const scores = cluster.cluster_scores ?? {}
+  const scores = Array.isArray(cluster.cluster_scores) ? (cluster.cluster_scores[0] ?? {}) : (cluster.cluster_scores ?? {})
 
   // Resolve top_entities UUIDs to names
   let entityNames: string[] = []
@@ -247,7 +247,7 @@ export async function getPublishedSignals(opts: {
     })
     .map((s) => {
       const cluster = s.clusters ?? {}
-      const scores = cluster.cluster_scores ?? {}
+      const scores = Array.isArray(cluster.cluster_scores) ? (cluster.cluster_scores[0] ?? {}) : (cluster.cluster_scores ?? {})
       const rawScore = scores.signal_score_raw ?? null
       const rawConfidence = scores.ai_confidence ?? null
 
@@ -303,7 +303,7 @@ export async function getSignalById(id: string): Promise<PublishedSignal | null>
 
   const s = data as any
   const cluster = s.clusters ?? {}
-  const scores = cluster.cluster_scores ?? {}
+  const scores = Array.isArray(cluster.cluster_scores) ? (cluster.cluster_scores[0] ?? {}) : (cluster.cluster_scores ?? {})
   const rawScore = scores.signal_score_raw ?? null
   const rawConfidence = scores.ai_confidence ?? null
 
@@ -387,7 +387,7 @@ export async function getArchivedSignals(opts: {
     })
     .map((s) => {
       const cluster = s.clusters ?? {}
-      const scores = cluster.cluster_scores ?? {}
+      const scores = Array.isArray(cluster.cluster_scores) ? (cluster.cluster_scores[0] ?? {}) : (cluster.cluster_scores ?? {})
       const rawScore = scores.signal_score_raw ?? null
       const rawConfidence = scores.ai_confidence ?? null
 

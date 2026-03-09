@@ -30,7 +30,9 @@ export default async function BriefsPage() {
               <article key={signal.id} className="brief-row" role="listitem">
                 <div className="brief-main">
                   <h3 className="brief-title">
-                    <Link href={`/briefs/${signal.id}`}>{signal.title}</Link>
+                    <Link href={`/briefs/${signal.id}`}>
+                      {signal.published_title ?? signal.cluster_summary ?? "Untitled"}
+                    </Link>
                   </h3>
                   <div className="meta">
                     <span className="meta-item">
@@ -41,12 +43,16 @@ export default async function BriefsPage() {
                         : "—"}
                     </span>
                     <span className="meta-dot" />
-                    <span className="meta-item">Domain: {signal.domain}</span>
+                    <span className="meta-item">
+                      Domain: {signal.primary_domain ?? "—"}
+                    </span>
                   </div>
-                  <p className="brief-desc">{signal.summary}</p>
+                  <p className="brief-desc">
+                    {signal.cluster_summary ?? ""}
+                  </p>
                 </div>
                 <div className="brief-action">
-                  <Link className="read" href={`/briefs/${signal.slug}`}>
+                  <Link className="read" href={`/briefs/${signal.id}`}>
                     Read <span className="arrow">→</span>
                   </Link>
                 </div>

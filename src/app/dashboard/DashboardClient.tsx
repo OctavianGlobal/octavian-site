@@ -5,6 +5,7 @@ import { useState } from "react";
 import Footer from "@/components/Footer";
 import { TIER_PERMISSIONS } from "@/lib/tiers";
 import type { SubscriptionTier, DashboardSignal, SignalDomain } from "@/types/supabase";
+import PipelineHealth from "@/components/PipelineHealth";
 
 const DOMAIN_COLORS: Record<string, string> = {
   POWER: "power",
@@ -144,6 +145,7 @@ export default function DashboardClient({
               <Link href="/dashboard/users" className="dash-nav-link">
                 Users
               </Link>
+              <PipelineHealth />
             </div>
           )}
         </aside>

@@ -9,14 +9,14 @@ import { getUser } from '@/lib/auth'
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const supabase = createServiceClient() as any
-    const { id } = params
+    const { id } = await params
 
     // Fetch signal + cluster + scores
     const { data, error } = await supabase

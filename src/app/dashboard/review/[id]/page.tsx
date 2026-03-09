@@ -266,20 +266,20 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   <div>Sources: <strong style={{ color: "var(--ink)" }}>{signal.item_count} item{signal.item_count !== 1 ? "s" : ""}</strong></div>
                 </div>
 
-                {signal.entity_names.length > 0 && (
+                {(signal.entity_names ?? []).length > 0 && (
                   <div style={{ marginBottom: "14px" }}>
                     <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "8px" }}>Entities</div>
                     <div className="queue-tags">
-                      {signal.entity_names.map((e) => <span key={e} className="tag-pill">{e}</span>)}
+                      {(signal.entity_names ?? []).map((e) => <span key={e} className="tag-pill">{e}</span>)}
                     </div>
                   </div>
                 )}
 
-                {signal.tag_names.length > 0 && (
+                {(signal.tag_names ?? []).length > 0 && (
                   <div>
                     <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "8px" }}>Tags</div>
                     <div className="queue-tags">
-                      {signal.tag_names.map((t) => <span key={t} className="tag-pill" style={{ background: "#f5f5f5" }}>{t.replace(/_/g, " ")}</span>)}
+                      {(signal.tag_names ?? []).map((t) => <span key={t} className="tag-pill" style={{ background: "#f5f5f5" }}>{t.replace(/_/g, " ")}</span>)}
                     </div>
                   </div>
                 )}

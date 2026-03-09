@@ -5,8 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient, createServerSupabaseClient } from '@/lib/supabase'
-import { getUser, getSubscriptionTier, getTierPermissions } from '@/lib/auth'
-import type { Signal, SignalDomain } from '@/types/supabase'
+import { getProfile, getSubscriptionTier, getTierPermissions } from '@/lib/auth'
 
 const PIPELINE_SECRET = process.env.PIPELINE_SECRET
 
@@ -16,68 +15,66 @@ function isPipelineRequest(request: NextRequest): boolean {
   return authHeader === `Bearer ${PIPELINE_SECRET}`
 }
 
-async function isAdminUser(): Promise<boolean> {
-  const user = await getUser()
-  if (!user) return false
-  return user.app_metadata?.role === 'admin'
+async function isEditorOrAdmin(): Promise<boolean> {
+  const profile = await getProfile()
+  return (profile?.is_editor ?? false) || (profile?.is_admin ?? false)
 }
 
 // ── POST — Archive a signal ───────────────────────────────
 export async function POST(request: NextRequest) {
   try {
     const pipeline = isPipelineRequest(request)
-    const admin = pipeline ? false : await isAdminUser()
+    const authorized = pipeline ? true : await isEditorOrAdmin()
 
-    if (!pipeline && !admin) {
+    if (!authorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
     const { signal_id, signal_ids } = body
 
-  const supabase = createServiceClient() as any
+    const supabase = createServiceClient() as any
     const now = new Date().toISOString()
-    const updatePayload = { status: 'archived', archived_at: now, updated_at: now } as any
 
+    // ── Bulk archive ──────────────────────────────────────
     if (signal_ids && Array.isArray(signal_ids)) {
       const { data, error } = await supabase
         .from('signals')
-        .update(updatePayload)
+        .update({ status: 'archived', reviewed_at: now })
         .in('id', signal_ids)
-        .eq('status', 'published')
-        .select('id, title')
+        .in('status', ['candidate', 'published'])
+        .select('id, status')
 
       if (error) {
         console.error('[api/signals/archive] Bulk archive error:', error.message)
         return NextResponse.json({ error: 'Bulk archive failed' }, { status: 500 })
       }
 
-      const rows = data as Pick<Signal, 'id' | 'title'>[] | null
-
       return NextResponse.json({
         success: true,
-        archived_count: rows?.length ?? 0,
-        archived: rows,
+        archived_count: data?.length ?? 0,
+        archived: data,
       })
     }
 
+    // ── Single archive ────────────────────────────────────
     if (signal_id) {
       const { data, error } = await supabase
         .from('signals')
-        .update(updatePayload)
+        .update({ status: 'archived', reviewed_at: now })
         .eq('id', signal_id)
-        .eq('status', 'published')
+        .in('status', ['candidate', 'published'])
         .select()
         .single()
 
       if (error || !data) {
         return NextResponse.json(
-          { error: 'Signal not found or not in published status' },
+          { error: 'Signal not found or already archived' },
           { status: 404 }
         )
       }
 
-      return NextResponse.json({ success: true, signal: data as Signal })
+      return NextResponse.json({ success: true, signal: data })
     }
 
     return NextResponse.json(
@@ -90,7 +87,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ── GET — Browse the archive (paid subscribers) ────────────
+// ── GET — Browse archive (paid subscribers) ──────────────
 export async function GET(request: NextRequest) {
   try {
     const tier = await getSubscriptionTier()
@@ -108,8 +105,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const domain = searchParams.get('domain') as SignalDomain | null
-    const search = searchParams.get('q')
+    const domain = searchParams.get('domain')
     const limit = Math.min(parseInt(searchParams.get('limit') ?? '20'), 50)
     const offset = parseInt(searchParams.get('offset') ?? '0')
 
@@ -117,15 +113,26 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('signals')
-      .select('id, title, slug, domain, impact, score, confidence, published_at, archived_at, summary', {
-        count: 'exact',
-      })
+      .select(`
+        id,
+        cluster_id,
+        status,
+        published_at,
+        published_title,
+        published_body_md,
+        created_at,
+        clusters (
+          cluster_summary,
+          primary_domain,
+          cluster_scores (
+            signal_score_raw,
+            ai_confidence
+          )
+        )
+      `, { count: 'exact' })
       .eq('status', 'archived')
-      .order('archived_at', { ascending: false })
+      .order('published_at', { ascending: false })
       .range(offset, offset + limit - 1)
-
-    if (domain) query = query.eq('domain', domain)
-    if (search) query = query.textSearch('title', search, { type: 'websearch' })
 
     if (perms.archiveDaysBack !== 'unlimited') {
       const cutoff = new Date()
@@ -140,16 +147,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Archive query failed' }, { status: 500 })
     }
 
-    const rows = data as Pick<Signal,
-      'id' | 'title' | 'slug' | 'domain' | 'impact' |
-      'score' | 'confidence' | 'published_at' | 'archived_at' | 'summary'
-    >[] | null
+    const rows = (data as any[]) ?? []
 
-    const signals = (rows ?? []).map((s) => ({
-      ...s,
-      score: perms.canViewScores ? s.score : null,
-      confidence: perms.canViewConfidence ? s.confidence : null,
-    }))
+    const signals = rows
+      .filter((s) => {
+        if (domain) return s.clusters?.primary_domain === domain
+        return true
+      })
+      .map((s) => {
+        const cluster = s.clusters ?? {}
+        const scores = cluster.cluster_scores ?? {}
+        const rawScore = scores.signal_score_raw ?? null
+        const rawConfidence = scores.ai_confidence ?? null
+
+        return {
+          id: s.id,
+          cluster_id: s.cluster_id,
+          status: s.status,
+          published_at: s.published_at,
+          published_title: s.published_title,
+          published_body_md: s.published_body_md,
+          created_at: s.created_at,
+          primary_domain: cluster.primary_domain ?? null,
+          cluster_summary: cluster.cluster_summary ?? null,
+          score: perms.canViewScores ? rawScore : null,
+          confidence: perms.canViewConfidence ? rawConfidence : null,
+        }
+      })
 
     return NextResponse.json({
       signals,

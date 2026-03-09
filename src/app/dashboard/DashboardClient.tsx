@@ -4,15 +4,17 @@ import Link from "next/link";
 import { useState } from "react";
 import Footer from "@/components/Footer";
 import { TIER_PERMISSIONS } from "@/lib/tiers";
-import type { SubscriptionTier, SignalPublic } from "@/types/supabase";
+import type { SubscriptionTier, DashboardSignal, SignalDomain } from "@/types/supabase";
 
 const DOMAIN_COLORS: Record<string, string> = {
   POWER: "power",
   MONEY: "money",
   RULES: "rules",
-  TECHNOLOGY: "tech",
   ENVIRONMENT: "env",
+  TECHNOLOGY: "tech",
 };
+
+const DOMAIN_FALLBACK: SignalDomain = "POWER";
 
 const TIERS: SubscriptionTier[] = [
   "free",
@@ -25,13 +27,18 @@ const TIERS: SubscriptionTier[] = [
 ];
 
 interface DashboardClientProps {
-  isEditor: boolean
-  isAdmin: boolean
-  signals: SignalPublic[]
-  tier: SubscriptionTier
+  isEditor: boolean;
+  isAdmin: boolean;
+  signals: DashboardSignal[];
+  tier: SubscriptionTier;
 }
 
-export default function DashboardClient({ isEditor, isAdmin, signals, tier }: DashboardClientProps) {
+export default function DashboardClient({
+  isEditor,
+  isAdmin,
+  signals,
+  tier,
+}: DashboardClientProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<string | null>(null);
   const [previewTier, setPreviewTier] = useState<SubscriptionTier>(tier);
@@ -82,7 +89,9 @@ export default function DashboardClient({ isEditor, isAdmin, signals, tier }: Da
               }}
             >
               {TIERS.map((t) => (
-                <option key={t} value={t}>{t.replace(/_/g, " ").toUpperCase()}</option>
+                <option key={t} value={t}>
+                  {t.replace(/_/g, " ").toUpperCase()}
+                </option>
               ))}
             </select>
           </div>
@@ -92,12 +101,23 @@ export default function DashboardClient({ isEditor, isAdmin, signals, tier }: Da
       {/* ── Permissions bar ── */}
       <div style={{ background: "#0a0a0a", borderBottom: "1px solid #1a1a1a", padding: "8px 0" }}>
         <div className="container" style={{ display: "flex", gap: "20px", fontSize: "11px" }}>
-          <span style={{ color: perms.canViewScores ? "#4caf50" : "#555" }}>{perms.canViewScores ? "✓" : "✗"} Scores</span>
-          <span style={{ color: perms.canViewConfidence ? "#4caf50" : "#555" }}>{perms.canViewConfidence ? "✓" : "✗"} Confidence</span>
-          <span style={{ color: perms.canSearchArchive ? "#4caf50" : "#555" }}>{perms.canSearchArchive ? "✓" : "✗"} Archive</span>
-          <span style={{ color: perms.canAccessAPI ? "#4caf50" : "#555" }}>{perms.canAccessAPI ? "✓" : "✗"} API</span>
+          <span style={{ color: perms.canViewScores ? "#4caf50" : "#555" }}>
+            {perms.canViewScores ? "✓" : "✗"} Scores
+          </span>
+          <span style={{ color: perms.canViewConfidence ? "#4caf50" : "#555" }}>
+            {perms.canViewConfidence ? "✓" : "✗"} Confidence
+          </span>
+          <span style={{ color: perms.canSearchArchive ? "#4caf50" : "#555" }}>
+            {perms.canSearchArchive ? "✓" : "✗"} Archive
+          </span>
+          <span style={{ color: perms.canAccessAPI ? "#4caf50" : "#555" }}>
+            {perms.canAccessAPI ? "✓" : "✗"} API
+          </span>
           <span style={{ color: "rgba(255,255,255,0.2)" }}>
-            Archive: {perms.archiveDaysBack === "unlimited" ? "Unlimited" : `${perms.archiveDaysBack} days`}
+            Archive:{" "}
+            {perms.archiveDaysBack === "unlimited"
+              ? "Unlimited"
+              : `${perms.archiveDaysBack} days`}
           </span>
         </div>
       </div>
@@ -105,15 +125,25 @@ export default function DashboardClient({ isEditor, isAdmin, signals, tier }: Da
       <div className="dash-shell">
         <aside className="dash-sidebar">
           <div className="dash-sidebar-title">Navigation</div>
-          <Link href="/dashboard" className="dash-nav-link active">Signal Queue</Link>
-          <Link href="/dashboard/published" className="dash-nav-link">Published Briefs</Link>
-          <Link href="/dashboard/archive" className="dash-nav-link">Archive</Link>
+          <Link href="/dashboard" className="dash-nav-link active">
+            Signal Queue
+          </Link>
+          <Link href="/dashboard/published" className="dash-nav-link">
+            Published Briefs
+          </Link>
+          <Link href="/dashboard/archive" className="dash-nav-link">
+            Archive
+          </Link>
 
           {isAdmin && (
             <div style={{ marginTop: "32px" }}>
               <div className="dash-sidebar-title">Admin</div>
-              <Link href="/dashboard/sources" className="dash-nav-link">Sources</Link>
-              <Link href="/dashboard/users" className="dash-nav-link">Users</Link>
+              <Link href="/dashboard/sources" className="dash-nav-link">
+                Sources
+              </Link>
+              <Link href="/dashboard/users" className="dash-nav-link">
+                Users
+              </Link>
             </div>
           )}
         </aside>
@@ -123,13 +153,16 @@ export default function DashboardClient({ isEditor, isAdmin, signals, tier }: Da
             <div>
               <h1 className="dash-title">Signal Queue</h1>
               <p className="dash-subtitle">
-                {signals.length} candidate signals · Select up to 5 to push to review
+                {signals.length} candidate signals · Select up to 5 to push to
+                review
               </p>
             </div>
             {isEditor && (
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 {selected.size > 0 && (
-                  <span style={{ fontSize: "13px", color: "var(--muted)" }}>{selected.size} selected</span>
+                  <span style={{ fontSize: "13px", color: "var(--muted)" }}>
+                    {selected.size} selected
+                  </span>
                 )}
                 <button
                   className="btn-gold"
@@ -144,91 +177,184 @@ export default function DashboardClient({ isEditor, isAdmin, signals, tier }: Da
           </div>
 
           {signals.length === 0 ? (
-            <div style={{ padding: "48px 0", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+            <div
+              style={{
+                padding: "48px 0",
+                textAlign: "center",
+                color: "var(--muted)",
+                fontSize: "13px",
+              }}
+            >
               No signals in the queue.
             </div>
           ) : (
-            signals.map((sig) => (
-              <div
-                key={sig.id}
-                className={`queue-row${selected.has(sig.id) ? " selected" : ""}`}
-                style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}
-              >
-                {isEditor && (
-                  <input
-                    type="checkbox"
-                    checked={selected.has(sig.id)}
-                    onChange={() => toggleSelect(sig.id)}
-                    style={{ marginTop: "4px", accentColor: "var(--gold)", cursor: "pointer", flexShrink: 0, width: "auto" }}
-                    disabled={!selected.has(sig.id) && selected.size >= 5}
-                  />
-                )}
+            signals.map((sig) => {
+              // Use live primary_domain from cluster, fall back to POWER
+              const domain: SignalDomain = sig.primary_domain ?? DOMAIN_FALLBACK;
+              const scoreDisplay = perms.canViewScores && sig.score !== null
+                ? Math.round(sig.score * 100)
+                : null;
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="queue-title">{sig.title}</div>
-                  <div className="meta" style={{ margin: "4px 0 8px" }}>
-                    <span className="meta-item">{sig.published_at?.slice(0, 10)}</span>
-                    <span className="meta-dot" />
-                    <span className={`tag-pill ${DOMAIN_COLORS[sig.domain] ?? ""}`}>{sig.domain}</span>
-                    {perms.canViewConfidence && sig.confidence !== null && (
-                      <span className="meta-item" style={{ color: "var(--muted)" }}>
-                        AI conf: {Math.round(sig.confidence * 100)}%
+              return (
+                <div
+                  key={sig.id}
+                  className={`queue-row${selected.has(sig.id) ? " selected" : ""}`}
+                  style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}
+                >
+                  {isEditor && (
+                    <input
+                      type="checkbox"
+                      checked={selected.has(sig.id)}
+                      onChange={() => toggleSelect(sig.id)}
+                      style={{
+                        marginTop: "4px",
+                        accentColor: "var(--gold)",
+                        cursor: "pointer",
+                        flexShrink: 0,
+                        width: "auto",
+                      }}
+                      disabled={!selected.has(sig.id) && selected.size >= 5}
+                    />
+                  )}
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="queue-title">
+                      {sig.cluster_summary ?? "Untitled Signal"}
+                    </div>
+                    <div className="meta" style={{ margin: "4px 0 8px" }}>
+                      <span className="meta-item">
+                        {sig.created_at?.slice(0, 10) ?? "—"}
                       </span>
+                      <span className="meta-dot" />
+                      {(sig.domains_jsonb?.length ? sig.domains_jsonb : [sig.primary_domain ?? DOMAIN_FALLBACK]).map((d) => (
+                        <span key={d} className={`tag-pill ${DOMAIN_COLORS[d] ?? ""}`}>
+                          {d}
+                        </span>
+                      ))}
+                      {perms.canViewConfidence && sig.confidence !== null && (
+                        <span
+                          className="meta-item"
+                          style={{ color: "var(--muted)" }}
+                        >
+                          AI conf: {Math.round(sig.confidence * 100)}%
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Domain score bars — visible to analyst+ */}
+                    {expanded === sig.id && perms.canViewScores && (
+                      <div style={{ marginTop: "8px" }}>
+                        {[
+                          { label: "Power", value: sig.power_score },
+                          { label: "Money", value: sig.money_score },
+                          { label: "Rules", value: sig.rules_score },
+                        ].map(({ label, value }) => (
+                          <div
+                            key={label}
+                            className="domain-bar-row"
+                          >
+                            <span className="domain-bar-label">{label}</span>
+                            <div className="domain-bar-track">
+                              <div
+                                className={`domain-bar-fill ${label.toLowerCase()}`}
+                                style={{
+                                  width:
+                                    value !== null
+                                      ? `${Math.min((value / 5) * 100, 100)}%`
+                                      : "0%",
+                                }}
+                              />
+                            </div>
+                            <span className="domain-bar-value">
+                              {value !== null ? value.toFixed(1) : "—"}
+                            </span>
+                          </div>
+                        ))}
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "var(--muted)",
+                            marginTop: "8px",
+                          }}
+                        >
+                          {sig.cluster_summary}
+                        </div>
+                      </div>
+                    )}
+
+                    {perms.canViewScores && (
+                      <button
+                        onClick={() => toggleExpand(sig.id)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--muted)",
+                          fontSize: "11px",
+                          letterSpacing: "0.08em",
+                          cursor: "pointer",
+                          marginTop: "10px",
+                          padding: 0,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {expanded === sig.id ? "▲ Less" : "▼ Domain Scores"}
+                      </button>
                     )}
                   </div>
 
-                  {expanded === sig.id && perms.canViewScores && (
-                    <div style={{ marginTop: "8px", fontSize: "12px", color: "var(--muted)" }}>
-                      {sig.summary}
-                    </div>
-                  )}
-
-                  {perms.canViewScores && (
-                    <button
-                      onClick={() => toggleExpand(sig.id)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "var(--muted)",
-                        fontSize: "11px",
-                        letterSpacing: "0.08em",
-                        cursor: "pointer",
-                        marginTop: "10px",
-                        padding: 0,
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {expanded === sig.id ? "▲ Less" : "▼ Summary"}
-                    </button>
-                  )}
+                  <div
+                    style={{
+                      textAlign: "right",
+                      flexShrink: 0,
+                      width: "110px",
+                    }}
+                  >
+                    {perms.canViewScores ? (
+                      <>
+                        <div className="queue-score">
+                          {scoreDisplay !== null ? scoreDisplay : "—"}
+                        </div>
+                        <div className="queue-score-label">Signal Score</div>
+                      </>
+                    ) : (
+                      <>
+                        <div
+                          style={{
+                            color: "#444",
+                            fontSize: "22px",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          —
+                        </div>
+                        <div style={{ fontSize: "11px" }}>
+                          <Link
+                            href="/upgrade"
+                            style={{ color: "var(--gold)" }}
+                          >
+                            Upgrade to view
+                          </Link>
+                        </div>
+                      </>
+                    )}
+                    {isEditor && (
+                      <Link
+                        href={`/dashboard/review/${sig.id}`}
+                        className="btn-light"
+                        style={{
+                          marginTop: "10px",
+                          fontSize: "12px",
+                          padding: "8px 12px",
+                          display: "inline-block",
+                        }}
+                      >
+                        Edit & Publish
+                      </Link>
+                    )}
+                  </div>
                 </div>
-
-                <div style={{ textAlign: "right", flexShrink: 0, width: "110px" }}>
-                  {perms.canViewScores ? (
-                    <>
-                      <div className="queue-score">{sig.score !== null ? Math.round(sig.score * 100) : "—"}</div>
-                      <div className="queue-score-label">Signal Score</div>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ color: "#444", fontSize: "22px", fontWeight: "bold" }}>—</div>
-                      <div style={{ fontSize: "11px" }}>
-                        <Link href="/upgrade" style={{ color: "var(--gold)" }}>Upgrade to view</Link>
-                      </div>
-                    </>
-                  )}
-                  {isEditor && (
-                    <Link
-                      href={`/dashboard/review/${sig.id}`}
-                      className="btn-light"
-                      style={{ marginTop: "10px", fontSize: "12px", padding: "8px 12px", display: "inline-block" }}
-                    >
-                      Edit & Publish
-                    </Link>
-                  )}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </main>
       </div>

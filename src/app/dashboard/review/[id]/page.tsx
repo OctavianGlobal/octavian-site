@@ -22,6 +22,13 @@ interface SignalReviewData {
   money_score: number | null;
   rules_score: number | null;
   ai_confidence: number | null;
+  evidence_score: number | null;
+  impact_score: number | null;
+  novelty_score: number | null;
+  anomaly_score: number | null;
+  credibility_score: number | null;
+  corroboration_score: number | null;
+  severity_modifier: number | null;
 }
 
 const DOMAIN_COLORS: Record<string, string> = {
@@ -57,6 +64,8 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     load();
   }, [id]);
 
+  // ── NO auto-draft on load — editor decides when to use AI ──
+
   const handleDraft = useCallback(async () => {
     if (!signal) return;
     setDrafting(true);
@@ -77,12 +86,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       setDrafting(false);
     }
   }, [signal, id, title]);
-
-  useEffect(() => {
-    if (signal && !signal.published_body_md) {
-      handleDraft();
-    }
-  }, [signal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handlePublish() {
     if (!title.trim()) return;
@@ -169,9 +172,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       <NavBar />
       <div style={{ background: "var(--paper)", minHeight: "calc(100vh - 120px)" }}>
         <div className="container" style={{ padding: "32px 0" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "32px", alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "32px", alignItems: "start" }}>
 
-            {/* Left: editor */}
+            {/* ── Left: editor ── */}
             <div>
               <h1 style={{ fontFamily: "Cinzel, serif", fontSize: "20px", marginBottom: "6px" }}>Edit & Publish Brief</h1>
               <p style={{ color: "var(--muted)", fontSize: "12px", marginBottom: "24px" }}>
@@ -188,11 +191,25 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "0 0 16px" }}>
-                <button className="btn-light" onClick={handleDraft} disabled={drafting} style={{ fontSize: "12px" }}>
-                  {drafting ? "Drafting…" : body ? "↺ Redraft with AI" : "✦ Draft with AI"}
+                <button
+                  className="btn-light"
+                  onClick={handleDraft}
+                  disabled={drafting}
+                  style={{ fontSize: "12px" }}
+                >
+                  {drafting ? "Drafting…" : body ? "↺ Redraft with AI" : "✦ Get AI Draft"}
                 </button>
-                {drafting && <span style={{ fontSize: "12px", color: "var(--muted)" }}>Generating brief…</span>}
-                {draftError && <span style={{ fontSize: "12px", color: "#c62828" }}>{draftError}</span>}
+                {drafting && (
+                  <span style={{ fontSize: "12px", color: "var(--muted)" }}>Generating brief…</span>
+                )}
+                {draftError && (
+                  <span style={{ fontSize: "12px", color: "#c62828" }}>{draftError}</span>
+                )}
+                {!body && !drafting && (
+                  <span style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "0.04em" }}>
+                    or write the brief manually below
+                  </span>
+                )}
               </div>
 
               <div className="field">
@@ -200,8 +217,15 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 <textarea
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
-                  placeholder={drafting ? "AI is drafting your brief…" : "Brief will appear here after AI drafts it."}
-                  style={{ minHeight: "460px", fontFamily: "monospace", fontSize: "13px", lineHeight: "1.7", opacity: drafting ? 0.5 : 1, transition: "opacity 0.2s" }}
+                  placeholder="Write the brief here, or click Get AI Draft for a starting point."
+                  style={{
+                    minHeight: "460px",
+                    fontFamily: "monospace",
+                    fontSize: "13px",
+                    lineHeight: "1.7",
+                    opacity: drafting ? 0.5 : 1,
+                    transition: "opacity 0.2s",
+                  }}
                 />
               </div>
 
@@ -210,7 +234,11 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               )}
 
               <div className="form-actions" style={{ marginTop: "8px" }}>
-                <button className="btn-gold" onClick={handlePublish} disabled={status === "saving" || !title.trim() || drafting}>
+                <button
+                  className="btn-gold"
+                  onClick={handlePublish}
+                  disabled={status === "saving" || !title.trim() || drafting}
+                >
                   {status === "saving" ? "Publishing…" : "Publish Brief →"}
                 </button>
                 <button className="btn-light" onClick={handleArchive}>Archive Signal</button>
@@ -218,14 +246,15 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
 
-            {/* Right: signal intelligence panel */}
+            {/* ── Right: full intelligence panel ── */}
             <div style={{ position: "sticky", top: "24px" }}>
               <div className="card" style={{ padding: "22px" }}>
+
+                {/* Signal score */}
                 <div style={{ fontSize: "11px", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "16px" }}>
                   Signal Intelligence
                 </div>
-
-                <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "6px" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "4px" }}>
                   <span style={{ fontFamily: "Cinzel, serif", fontSize: "42px", fontWeight: 600, color: "var(--gold)", lineHeight: 1 }}>
                     {scorePct !== null ? scorePct : "—"}
                   </span>
@@ -235,15 +264,22 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   Signal Score
                 </div>
 
+                {/* Domain pills */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "18px" }}>
                   {domains.map((d) => (
-                    <span key={d} style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", padding: "3px 8px", borderRadius: "4px", border: `1px solid ${DOMAIN_COLORS[d] ?? "#999"}`, color: DOMAIN_COLORS[d] ?? "#999", background: "transparent" }}>
+                    <span key={d} style={{
+                      fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em",
+                      padding: "3px 8px", borderRadius: "4px",
+                      border: `1px solid ${DOMAIN_COLORS[d] ?? "#999"}`,
+                      color: DOMAIN_COLORS[d] ?? "#999", background: "transparent",
+                    }}>
                       {d}
                     </span>
                   ))}
                 </div>
 
-                <div className="domain-bars" style={{ marginBottom: "18px" }}>
+                {/* Domain score bars */}
+                <div style={{ marginBottom: "18px" }}>
                   {[
                     { label: "Power", value: signal.power_score, cls: "power" },
                     { label: "Money", value: signal.money_score, cls: "money" },
@@ -252,37 +288,84 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                     <div key={label} className="domain-bar-row">
                       <span className="domain-bar-label">{label}</span>
                       <div className="domain-bar-track">
-                        <div className={`domain-bar-fill ${cls}`} style={{ width: value !== null ? `${Math.min((value / 5) * 100, 100)}%` : "0%" }} />
+                        <div className={`domain-bar-fill ${cls}`}
+                          style={{ width: value !== null ? `${Math.min((value / 5) * 100, 100)}%` : "0%" }} />
                       </div>
                       <span className="domain-bar-value">{value !== null ? value.toFixed(1) : "—"}</span>
                     </div>
                   ))}
                 </div>
 
-                <div style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>
-                  {signal.ai_confidence !== null && (
-                    <div style={{ marginBottom: "4px" }}>AI Confidence: <strong style={{ color: "var(--ink)" }}>{Math.round(signal.ai_confidence * 100)}%</strong></div>
-                  )}
-                  <div>Sources: <strong style={{ color: "var(--ink)" }}>{signal.item_count} item{signal.item_count !== 1 ? "s" : ""}</strong></div>
+                {/* Score components */}
+                <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", marginBottom: "14px" }}>
+                  <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "10px" }}>
+                    Score Breakdown
+                  </div>
+                  {[
+                    { label: "Evidence", value: signal.evidence_score },
+                    { label: "Impact", value: signal.impact_score },
+                    { label: "Novelty", value: signal.novelty_score },
+                    { label: "Anomaly", value: signal.anomaly_score },
+                  ].map(({ label, value }) => (
+                    <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "5px" }}>
+                      <span style={{ color: "var(--muted)" }}>{label}</span>
+                      <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
+                        {value !== null ? (value * 100).toFixed(0) : "—"}
+                      </span>
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "5px" }}>
+                    <span style={{ color: "var(--muted)" }}>Credibility</span>
+                    <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
+                      {signal.credibility_score !== null ? (signal.credibility_score * 100).toFixed(0) : "—"}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
+                    <span style={{ color: "var(--muted)" }}>Corroboration</span>
+                    <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
+                      {signal.corroboration_score !== null ? (signal.corroboration_score * 100).toFixed(0) : "—"}
+                    </span>
+                  </div>
                 </div>
 
+                {/* Meta */}
+                <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>
+                  {signal.ai_confidence !== null && (
+                    <div style={{ marginBottom: "4px" }}>
+                      AI Confidence: <strong style={{ color: "var(--ink)" }}>{Math.round(signal.ai_confidence * 100)}%</strong>
+                    </div>
+                  )}
+                  <div>
+                    Sources: <strong style={{ color: "var(--ink)" }}>{signal.item_count} item{signal.item_count !== 1 ? "s" : ""}</strong>
+                  </div>
+                </div>
+
+                {/* Entities */}
                 {(signal.entity_names ?? []).length > 0 && (
-                  <div style={{ marginBottom: "14px" }}>
+                  <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", marginBottom: "14px" }}>
                     <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "8px" }}>Entities</div>
                     <div className="queue-tags">
-                      {(signal.entity_names ?? []).map((e) => <span key={e} className="tag-pill">{e}</span>)}
+                      {(signal.entity_names ?? []).map((e) => (
+                        <span key={e} className="tag-pill">{e}</span>
+                      ))}
                     </div>
                   </div>
                 )}
 
+                {/* Tags */}
                 {(signal.tag_names ?? []).length > 0 && (
-                  <div>
+                  <div style={{ borderTop: "1px solid #eee", paddingTop: "14px" }}>
                     <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "8px" }}>Tags</div>
                     <div className="queue-tags">
-                      {(signal.tag_names ?? []).map((t) => <span key={t} className="tag-pill" style={{ background: "#f5f5f5" }}>{t.replace(/_/g, " ")}</span>)}
+                      {(signal.tag_names ?? []).map((t) => (
+                        <span key={t} className="tag-pill" style={{ background: "#f5f5f5" }}>
+                          {t.replace(/_/g, " ")}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 )}
+
               </div>
             </div>
 

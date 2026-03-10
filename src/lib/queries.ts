@@ -35,7 +35,6 @@ export async function getDashboardData(opts: {
       .select('id')
       .eq('primary_domain', opts.domain)
     clusterIdFilter = (clusterRows ?? []).map((c: any) => c.id)
-    // If no clusters match, return empty immediately
     if (clusterIdFilter.length === 0) {
       return { recentSignals: [], count: 0, tier, permissions: perms }
     }
@@ -71,7 +70,6 @@ export async function getDashboardData(opts: {
     query = query.in('cluster_id', clusterIdFilter)
   }
 
-  // For date sort, order in DB. For score sort, fetch and sort in JS.
   if (sort === 'date') {
     query = query.order('created_at', { ascending: false })
     query = query.limit(limit)
@@ -79,8 +77,6 @@ export async function getDashboardData(opts: {
       query = query.range(opts.offset, opts.offset + limit - 1)
     }
   } else {
-    // Fetch larger window for score sort — we'll sort and slice in JS
-    // Use a reasonable cap to avoid fetching everything
     query = query.order('created_at', { ascending: false }).limit(500)
   }
 
@@ -137,8 +133,6 @@ export async function getDashboardData(opts: {
     mapped = mapped.slice(offset, offset + limit)
   }
 
-  console.log('[DEBUG] tier:', tier, 'sort:', sort, 'count:', totalCount)
-
   return {
     recentSignals: mapped,
     count: totalCount,
@@ -179,6 +173,9 @@ export async function getSignalForReview(id: string) {
           impact_score,
           novelty_score,
           anomaly_score,
+          credibility_score,
+          corroboration_score,
+          severity_modifier,
           ai_confidence
         )
       )
@@ -237,6 +234,13 @@ export async function getSignalForReview(id: string) {
     money_score: scores.money_score ?? null,
     rules_score: scores.rules_score ?? null,
     ai_confidence: scores.ai_confidence ?? null,
+    evidence_score: scores.evidence_score ?? null,
+    impact_score: scores.impact_score ?? null,
+    novelty_score: scores.novelty_score ?? null,
+    anomaly_score: scores.anomaly_score ?? null,
+    credibility_score: scores.credibility_score ?? null,
+    corroboration_score: scores.corroboration_score ?? null,
+    severity_modifier: scores.severity_modifier ?? null,
   }
 }
 
@@ -253,7 +257,6 @@ export async function getPublishedSignals(opts: {
 
   const limit = opts.limit ?? 20
 
-  // Resolve domain filter to cluster_ids
   let clusterIdFilter: string[] | null = null
   if (opts.domain) {
     const { data: clusterRows } = await supabase
@@ -406,7 +409,6 @@ export async function getArchivedSignals(opts: {
   const supabase = await createServerSupabaseClient()
   const limit = opts.limit ?? 25
 
-  // Resolve domain filter to cluster_ids
   let clusterIdFilter: string[] | null = null
   if (opts.domain) {
     const { data: clusterRows } = await supabase

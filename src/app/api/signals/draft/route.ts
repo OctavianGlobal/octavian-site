@@ -12,6 +12,43 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
+const SYSTEM_PROMPT = `You are a strategic intelligence analyst for Octavian Global, a signal intelligence platform. You write concise, authoritative briefs for senior analysts and decision-makers.
+
+BRIEF FORMAT — follow this exactly, in markdown:
+
+**[Title]**
+
+**Signal**
+One paragraph (2-4 sentences) explaining what happened. Factual, direct, no editorializing.
+
+**Why It Matters**
+- [Strategic implication 1]
+- [Strategic implication 2]
+- [Strategic implication 3]
+
+**Watch**
+- [Specific observable indicator 1]
+- [Specific observable indicator 2]
+- [Specific observable indicator 3]
+
+**Sources**
+[Source name 1] · [Source name 2] · [Source name 3]
+
+VOICE RULES:
+- Analytical, not alarmist
+- Active voice, present tense where possible
+- No hedging phrases like "it remains to be seen" or "time will tell"
+- No jargon or acronyms without expansion
+- Never mention signal scores, AI confidence, or internal platform data
+- Do not speculate beyond what the source data supports
+- The Why It Matters bullets explain strategic consequence — not just what happened
+- The Watch bullets must be specific and observable, not generic (e.g. "Congressional committee markup scheduled for April" not "watch for legislative developments")
+
+LENGTH: 120–220 words total. If you exceed 220 words, cut the weakest bullet.
+
+Return ONLY the brief in markdown. No preamble, no explanation, no commentary.`
+
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getUser()
@@ -51,7 +88,8 @@ export async function POST(request: NextRequest) {
 
     const s = data as any
     const cluster = s.clusters ?? {}
-    const scores = cluster.cluster_scores ?? {}
+    const scoresArr = cluster.cluster_scores ?? {}
+    const scores = Array.isArray(scoresArr) ? (scoresArr[0] ?? {}) : scoresArr
 
     // Resolve entity UUIDs → names
     let entityNames: string[] = []
@@ -70,70 +108,68 @@ export async function POST(request: NextRequest) {
     if (tagIds.length > 0) {
       const { data: tagRows } = await supabase
         .from('tags')
-        .select('name')
+        .select('name, domain')
         .in('id', tagIds.slice(0, 8))
       tagNames = (tagRows ?? []).map((t: any) => t.name.replace(/_/g, ' '))
     }
 
-    // Count source items
-    const { count: itemCount } = await supabase
+    // Fetch actual source titles for the Sources section
+    let sourceNames: string[] = []
+    const { data: itemRows } = await supabase
       .from('cluster_items')
-      .select('*', { count: 'exact', head: true })
+      .select('item_id')
       .eq('cluster_id', cluster.id)
+      .limit(6)
 
-    const scorePct = scores.signal_score_raw !== null
-      ? Math.round(scores.signal_score_raw * 100)
-      : null
+    if (itemRows?.length) {
+      const itemIds = itemRows.map((r: any) => r.item_id)
+      const { data: items } = await supabase
+        .from('items')
+        .select('source_id')
+        .in('id', itemIds)
+
+      if (items?.length) {
+        const sourceIds = [...new Set(items.map((i: any) => i.source_id))].slice(0, 3)
+        const { data: sources } = await supabase
+          .from('sources')
+          .select('name')
+          .in('id', sourceIds)
+        sourceNames = (sources ?? []).map((s: any) => s.name)
+      }
+    }
 
     const domains: string[] = cluster.domains_jsonb?.length
       ? cluster.domains_jsonb
       : cluster.primary_domain ? [cluster.primary_domain] : []
 
     const detectedDate = cluster.first_seen_at
-      ? new Date(cluster.first_seen_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      ? new Date(cluster.first_seen_at).toLocaleDateString('en-US', {
+          month: 'long', day: 'numeric', year: 'numeric'
+        })
+      : new Date().toLocaleDateString('en-US', {
+          month: 'long', day: 'numeric', year: 'numeric'
+        })
 
-    const prompt = `You are an intelligence analyst writing a brief for Octavian Global, a strategic signal intelligence platform.
+    const userPrompt = `Write an Octavian Global brief for the following signal.
 
-Write a brief using EXACTLY this format (markdown):
-
-**[TITLE]**
-*Published: ${detectedDate} · ${domains.join(' / ')}*
-
-## Signal
-[One paragraph, 2-3 sentences. What happened, specific facts, direct language.${entityNames.length ? ` Entities: ${entityNames.join(', ')}.` : ''}]
-
-## Why It Matters
-- [Strategic implication 1]
-- [Strategic implication 2]
-- [Strategic implication 3]
-
-## Watch
-- [Specific observable indicator 1]
-- [Specific observable indicator 2]
-- [Specific observable indicator 3]
-
----
-
-Signal data:
+SIGNAL DATA:
 - Summary: ${cluster.cluster_summary ?? 'No summary available'}
+- Detected: ${detectedDate}
 - Domains: ${domains.join(', ')}
-- Signal score: ${scorePct !== null ? `${scorePct}/100` : 'unknown'}
-- Source items: ${itemCount ?? 1}
-${entityNames.length ? `- Entities: ${entityNames.join(', ')}` : ''}
-${tagNames.length ? `- Tags: ${tagNames.join(', ')}` : ''}
+- Power score: ${scores.power_score !== null ? `${scores.power_score}/5` : 'unknown'}
+- Money score: ${scores.money_score !== null ? `${scores.money_score}/5` : 'unknown'}
+- Rules score: ${scores.rules_score !== null ? `${scores.rules_score}/5` : 'unknown'}
+${entityNames.length ? `- Key entities: ${entityNames.join(', ')}` : ''}
+${tagNames.length ? `- Topics: ${tagNames.join(', ')}` : ''}
+${sourceNames.length ? `- Sources: ${sourceNames.join(', ')}` : ''}
 
-Rules:
-- 120-220 words total
-- No fluff, no hedging
-- Watch bullets must be specific and observable, not generic
-- Do not invent facts not in the signal data
-- Return ONLY the brief markdown, nothing else`
+Write the brief now.`
 
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 600,
-      messages: [{ role: 'user', content: prompt }],
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userPrompt }],
     })
 
     const draft = (message.content[0] as any).text?.trim() ?? ''

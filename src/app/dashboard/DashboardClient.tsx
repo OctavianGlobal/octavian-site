@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Footer from "@/components/Footer";
 import { TIER_PERMISSIONS } from "@/lib/tiers";
 import type { SubscriptionTier, DashboardSignal, SignalDomain } from "@/types/supabase";
@@ -15,36 +16,77 @@ const DOMAIN_COLORS: Record<string, string> = {
   TECHNOLOGY: "tech",
 };
 
+const ALL_DOMAINS: SignalDomain[] = ["POWER", "MONEY", "RULES", "ENVIRONMENT", "TECHNOLOGY"];
 const DOMAIN_FALLBACK: SignalDomain = "POWER";
+const PAGE_SIZE = 25;
+const QUICK_ARCHIVE_THRESHOLD = 0.50;
 
 const TIERS: SubscriptionTier[] = [
   "free",
-  "signal_watch",
+  "signal",
   "signal_plus",
   "analyst",
-  "analyst_pro",
-  "institutional",
-  "private_briefing",
+  "editor",
 ];
 
 interface DashboardClientProps {
   isEditor: boolean;
   isAdmin: boolean;
   signals: DashboardSignal[];
+  count: number;
   tier: SubscriptionTier;
+  permissions: typeof TIER_PERMISSIONS[SubscriptionTier];
+  page: number;
+  domain: SignalDomain | null;
+  sort: 'date' | 'score';
 }
 
 export default function DashboardClient({
   isEditor,
   isAdmin,
   signals,
+  count,
   tier,
+  permissions,
+  page,
+  domain,
+  sort,
 }: DashboardClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<string | null>(null);
   const [previewTier, setPreviewTier] = useState<SubscriptionTier>(tier);
+  const [archiving, setArchiving] = useState<string | null>(null);
 
   const perms = TIER_PERMISSIONS[previewTier];
+  const totalPages = Math.ceil(count / PAGE_SIZE);
+
+  // ── URL param helpers ────────────────────────────────────────────────────
+
+  function pushParams(updates: Record<string, string | null>) {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null) params.delete(key);
+      else params.set(key, value);
+    });
+    router.push(`/dashboard?${params.toString()}`);
+  }
+
+  function handleDomainFilter(d: SignalDomain | null) {
+    pushParams({ domain: d, page: null });
+  }
+
+  function handlePageChange(newPage: number) {
+    pushParams({ page: newPage === 0 ? null : String(newPage) });
+  }
+
+  function handleSortToggle() {
+    pushParams({ sort: sort === 'date' ? 'score' : 'date', page: null });
+  }
+
+  // ── Selection ────────────────────────────────────────────────────────────
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -62,6 +104,29 @@ export default function DashboardClient({
   function handlePublishSelected() {
     if (selected.size === 0) return;
     alert(`Pushing ${selected.size} signal(s) to review queue.`);
+  }
+
+  // ── Quick archive ────────────────────────────────────────────────────────
+
+  async function handleQuickArchive(id: string) {
+    setArchiving(id);
+    try {
+      const res = await fetch('/api/signals/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signal_id: id }),
+      });
+      if (res.ok) {
+        // Refresh the page to remove archived signal from queue
+        router.refresh();
+      } else {
+        alert('Archive failed. Please try again.');
+      }
+    } catch {
+      alert('Archive failed. Please try again.');
+    } finally {
+      setArchiving(null);
+    }
   }
 
   return (
@@ -102,8 +167,11 @@ export default function DashboardClient({
       {/* ── Permissions bar ── */}
       <div style={{ background: "#0a0a0a", borderBottom: "1px solid #1a1a1a", padding: "8px 0" }}>
         <div className="container" style={{ display: "flex", gap: "20px", fontSize: "11px" }}>
-          <span style={{ color: perms.canViewScores ? "#4caf50" : "#555" }}>
-            {perms.canViewScores ? "✓" : "✗"} Scores
+          <span style={{ color: perms.canViewDomainScores ? "#4caf50" : "#555" }}>
+            {perms.canViewDomainScores ? "✓" : "✗"} Domain Scores
+          </span>
+          <span style={{ color: perms.canViewSignalScore ? "#4caf50" : "#555" }}>
+            {perms.canViewSignalScore ? "✓" : "✗"} Signal Score
           </span>
           <span style={{ color: perms.canViewConfidence ? "#4caf50" : "#555" }}>
             {perms.canViewConfidence ? "✓" : "✗"} Confidence
@@ -111,13 +179,15 @@ export default function DashboardClient({
           <span style={{ color: perms.canSearchArchive ? "#4caf50" : "#555" }}>
             {perms.canSearchArchive ? "✓" : "✗"} Archive
           </span>
-          <span style={{ color: perms.canAccessAPI ? "#4caf50" : "#555" }}>
-            {perms.canAccessAPI ? "✓" : "✗"} API
+          <span style={{ color: perms.canEditAndPublish ? "#4caf50" : "#555" }}>
+            {perms.canEditAndPublish ? "✓" : "✗"} Edit & Publish
           </span>
           <span style={{ color: "rgba(255,255,255,0.2)" }}>
             Archive:{" "}
             {perms.archiveDaysBack === "unlimited"
               ? "Unlimited"
+              : perms.archiveDaysBack === 0
+              ? "None"
               : `${perms.archiveDaysBack} days`}
           </span>
         </div>
@@ -155,11 +225,13 @@ export default function DashboardClient({
             <div>
               <h1 className="dash-title">Signal Queue</h1>
               <p className="dash-subtitle">
-                {signals.length} candidate signals · Select up to 5 to push to
-                review
+                {count} candidate signals
+                {domain && ` · ${domain}`}
+                {totalPages > 1 && ` · Page ${page + 1} of ${totalPages}`}
+                {perms.canEditAndPublish && " · Select up to 5 to push to review"}
               </p>
             </div>
-            {isEditor && (
+            {perms.canEditAndPublish && (
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 {selected.size > 0 && (
                   <span style={{ fontSize: "13px", color: "var(--muted)" }}>
@@ -178,24 +250,78 @@ export default function DashboardClient({
             )}
           </div>
 
-          {signals.length === 0 ? (
-            <div
+          {/* ── Filters + sort ── */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+            
+            {/* Domain pills */}
+            <button
+              onClick={() => handleDomainFilter(null)}
               style={{
-                padding: "48px 0",
-                textAlign: "center",
-                color: "var(--muted)",
-                fontSize: "13px",
+                background: domain === null ? "var(--gold)" : "#1a1a1a",
+                color: domain === null ? "var(--black)" : "var(--muted)",
+                border: "1px solid #333",
+                borderRadius: "4px",
+                fontSize: "11px",
+                letterSpacing: "0.08em",
+                padding: "4px 10px",
+                cursor: "pointer",
+                textTransform: "uppercase",
               }}
             >
+              All
+            </button>
+            {ALL_DOMAINS.map((d) => (
+              <button
+                key={d}
+                onClick={() => handleDomainFilter(domain === d ? null : d)}
+                className={`tag-pill ${DOMAIN_COLORS[d] ?? ""}`}
+                style={{
+                  cursor: "pointer",
+                  opacity: domain && domain !== d ? 0.4 : 1,
+                  border: domain === d ? "1px solid var(--gold)" : "1px solid transparent",
+                }}
+              >
+                {d}
+              </button>
+            ))}
+
+            <div style={{ flex: 1 }} />
+
+            {/* Sort toggle — editor only */}
+            {perms.canEditAndPublish && (
+              <button
+                onClick={handleSortToggle}
+                style={{
+                  background: "#1a1a1a",
+                  border: "1px solid #333",
+                  color: "var(--gold)",
+                  fontSize: "11px",
+                  letterSpacing: "0.08em",
+                  padding: "4px 12px",
+                  cursor: "pointer",
+                  textTransform: "uppercase",
+                }}
+              >
+                Sort: {sort === 'score' ? '▼ Score' : '▼ Date'}
+              </button>
+            )}
+          </div>
+
+          {signals.length === 0 ? (
+            <div style={{ padding: "48px 0", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
               No signals in the queue.
             </div>
           ) : (
             signals.map((sig) => {
-              // Use live primary_domain from cluster, fall back to POWER
-              const domain: SignalDomain = sig.primary_domain ?? DOMAIN_FALLBACK;
-              const scoreDisplay = perms.canViewScores && sig.score !== null
-                ? Math.round(sig.score * 100)
-                : null;
+              const scoreDisplay =
+                perms.canViewSignalScore && sig.score !== null
+                  ? Math.round(sig.score * 100)
+                  : null;
+
+              const showQuickArchive =
+                perms.canEditAndPublish &&
+                sig.signal_score_raw !== null &&
+                sig.signal_score_raw < QUICK_ARCHIVE_THRESHOLD;
 
               return (
                 <div
@@ -203,7 +329,7 @@ export default function DashboardClient({
                   className={`queue-row${selected.has(sig.id) ? " selected" : ""}`}
                   style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}
                 >
-                  {isEditor && (
+                  {perms.canEditAndPublish && (
                     <input
                       type="checkbox"
                       checked={selected.has(sig.id)}
@@ -228,42 +354,38 @@ export default function DashboardClient({
                         {sig.created_at?.slice(0, 10) ?? "—"}
                       </span>
                       <span className="meta-dot" />
-                      {(sig.domains_jsonb?.length ? sig.domains_jsonb : [sig.primary_domain ?? DOMAIN_FALLBACK]).map((d) => (
+                      {(sig.domains_jsonb?.length
+                        ? sig.domains_jsonb
+                        : [sig.primary_domain ?? DOMAIN_FALLBACK]
+                      ).map((d) => (
                         <span key={d} className={`tag-pill ${DOMAIN_COLORS[d] ?? ""}`}>
                           {d}
                         </span>
                       ))}
                       {perms.canViewConfidence && sig.confidence !== null && (
-                        <span
-                          className="meta-item"
-                          style={{ color: "var(--muted)" }}
-                        >
+                        <span className="meta-item" style={{ color: "var(--muted)" }}>
                           AI conf: {Math.round(sig.confidence * 100)}%
                         </span>
                       )}
                     </div>
 
-                    {/* Domain score bars — visible to analyst+ */}
-                    {expanded === sig.id && perms.canViewScores && (
+                    {/* Domain score bars — Signal tier+ */}
+                    {expanded === sig.id && perms.canViewDomainScores && (
                       <div style={{ marginTop: "8px" }}>
                         {[
                           { label: "Power", value: sig.power_score },
                           { label: "Money", value: sig.money_score },
                           { label: "Rules", value: sig.rules_score },
                         ].map(({ label, value }) => (
-                          <div
-                            key={label}
-                            className="domain-bar-row"
-                          >
+                          <div key={label} className="domain-bar-row">
                             <span className="domain-bar-label">{label}</span>
                             <div className="domain-bar-track">
                               <div
                                 className={`domain-bar-fill ${label.toLowerCase()}`}
                                 style={{
-                                  width:
-                                    value !== null
-                                      ? `${Math.min((value / 5) * 100, 100)}%`
-                                      : "0%",
+                                  width: value !== null
+                                    ? `${Math.min((value / 5) * 100, 100)}%`
+                                    : "0%",
                                 }}
                               />
                             </div>
@@ -272,19 +394,13 @@ export default function DashboardClient({
                             </span>
                           </div>
                         ))}
-                        <div
-                          style={{
-                            fontSize: "12px",
-                            color: "var(--muted)",
-                            marginTop: "8px",
-                          }}
-                        >
+                        <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "8px" }}>
                           {sig.cluster_summary}
                         </div>
                       </div>
                     )}
 
-                    {perms.canViewScores && (
+                    {perms.canViewDomainScores && (
                       <button
                         onClick={() => toggleExpand(sig.id)}
                         style={{
@@ -304,14 +420,8 @@ export default function DashboardClient({
                     )}
                   </div>
 
-                  <div
-                    style={{
-                      textAlign: "right",
-                      flexShrink: 0,
-                      width: "110px",
-                    }}
-                  >
-                    {perms.canViewScores ? (
+                  <div style={{ textAlign: "right", flexShrink: 0, width: "110px" }}>
+                    {perms.canViewSignalScore ? (
                       <>
                         <div className="queue-score">
                           {scoreDisplay !== null ? scoreDisplay : "—"}
@@ -320,43 +430,99 @@ export default function DashboardClient({
                       </>
                     ) : (
                       <>
-                        <div
-                          style={{
-                            color: "#444",
-                            fontSize: "22px",
-                            fontWeight: "bold",
-                          }}
-                        >
+                        <div style={{ color: "#444", fontSize: "22px", fontWeight: "bold" }}>
                           —
                         </div>
                         <div style={{ fontSize: "11px" }}>
-                          <Link
-                            href="/upgrade"
-                            style={{ color: "var(--gold)" }}
-                          >
+                          <Link href="/upgrade" style={{ color: "var(--gold)" }}>
                             Upgrade to view
                           </Link>
                         </div>
                       </>
                     )}
-                    {isEditor && (
-                      <Link
-                        href={`/dashboard/review/${sig.id}`}
-                        className="btn-light"
-                        style={{
-                          marginTop: "10px",
-                          fontSize: "12px",
-                          padding: "8px 12px",
-                          display: "inline-block",
-                        }}
-                      >
-                        Edit & Publish
-                      </Link>
+
+                    {perms.canEditAndPublish && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "10px" }}>
+                        <Link
+                          href={`/dashboard/review/${sig.id}`}
+                          className="btn-light"
+                          style={{
+                            fontSize: "12px",
+                            padding: "8px 12px",
+                            display: "inline-block",
+                            textAlign: "center",
+                          }}
+                        >
+                          Edit & Publish
+                        </Link>
+                        {showQuickArchive && (
+                          <button
+                            onClick={() => handleQuickArchive(sig.id)}
+                            disabled={archiving === sig.id}
+                            style={{
+                              background: "none",
+                              border: "1px solid #333",
+                              color: archiving === sig.id ? "#444" : "var(--muted)",
+                              fontSize: "11px",
+                              padding: "6px 12px",
+                              cursor: archiving === sig.id ? "default" : "pointer",
+                              letterSpacing: "0.06em",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {archiving === sig.id ? "Archiving…" : "↓ Archive"}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
               );
             })
+          )}
+
+          {/* ── Pagination ── */}
+          {totalPages > 1 && (
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: "12px",
+              marginTop: "32px",
+              paddingBottom: "32px",
+            }}>
+              <button
+                onClick={() => handlePageChange(page - 1)}
+                disabled={page === 0}
+                style={{
+                  background: "#1a1a1a",
+                  border: "1px solid #333",
+                  color: page === 0 ? "#444" : "var(--gold)",
+                  fontSize: "12px",
+                  padding: "6px 14px",
+                  cursor: page === 0 ? "default" : "pointer",
+                }}
+              >
+                ← Prev
+              </button>
+              <span style={{ fontSize: "12px", color: "var(--muted)" }}>
+                Page {page + 1} of {totalPages}
+              </span>
+              <button
+                onClick={() => handlePageChange(page + 1)}
+                disabled={page >= totalPages - 1}
+                style={{
+                  background: "#1a1a1a",
+                  border: "1px solid #333",
+                  color: page >= totalPages - 1 ? "#444" : "var(--gold)",
+                  fontSize: "12px",
+                  padding: "6px 14px",
+                  cursor: page >= totalPages - 1 ? "default" : "pointer",
+                }}
+              >
+                Next →
+              </button>
+            </div>
           )}
         </main>
       </div>

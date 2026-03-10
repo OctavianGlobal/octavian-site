@@ -2,76 +2,58 @@ import type { SubscriptionTier } from '@/types/supabase'
 
 export const TIER_ORDER: SubscriptionTier[] = [
   'free',
-  'signal_watch',
+  'signal',
   'signal_plus',
   'analyst',
-  'analyst_pro',
-  'institutional',
-  'private_briefing',
+  'editor',
 ]
 
 export const TIER_PERMISSIONS: Record<SubscriptionTier, {
-  canViewScores: boolean
-  canSearchArchive: boolean
+  canViewDomainScores: boolean
+  canViewSignalScore: boolean
   canViewConfidence: boolean
-  canAccessAPI: boolean
-  canAccessPrivateBriefing: boolean
+  canSearchArchive: boolean
+  canEditAndPublish: boolean
   archiveDaysBack: number | 'unlimited'
 }> = {
   free: {
-    canViewScores: false,
+    canViewDomainScores: false,
+    canViewSignalScore: false,
+    canViewConfidence: false,
     canSearchArchive: false,
-    canViewConfidence: false,
-    canAccessAPI: false,
-    canAccessPrivateBriefing: false,
-    archiveDaysBack: 30,
+    canEditAndPublish: false,
+    archiveDaysBack: 0,
   },
-  signal_watch: {
-    canViewScores: false,
-    canSearchArchive: true,
+  signal: {
+    canViewDomainScores: true,
+    canViewSignalScore: false,
     canViewConfidence: false,
-    canAccessAPI: false,
-    canAccessPrivateBriefing: false,
-    archiveDaysBack: 90,
+    canSearchArchive: false,
+    canEditAndPublish: false,
+    archiveDaysBack: 0,
   },
   signal_plus: {
-    canViewScores: true,
-    canSearchArchive: true,
-    canViewConfidence: false,
-    canAccessAPI: false,
-    canAccessPrivateBriefing: false,
-    archiveDaysBack: 180,
+    canViewDomainScores: true,
+    canViewSignalScore: true,
+    canViewConfidence: true,
+    canSearchArchive: false,
+    canEditAndPublish: false,
+    archiveDaysBack: 0,
   },
   analyst: {
-    canViewScores: true,
-    canSearchArchive: true,
+    canViewDomainScores: true,
+    canViewSignalScore: true,
     canViewConfidence: true,
-    canAccessAPI: false,
-    canAccessPrivateBriefing: false,
+    canSearchArchive: true,
+    canEditAndPublish: false,
     archiveDaysBack: 'unlimited',
   },
-  analyst_pro: {
-    canViewScores: true,
-    canSearchArchive: true,
+  editor: {
+    canViewDomainScores: true,
+    canViewSignalScore: true,
     canViewConfidence: true,
-    canAccessAPI: false,
-    canAccessPrivateBriefing: false,
-    archiveDaysBack: 'unlimited',
-  },
-  institutional: {
-    canViewScores: true,
     canSearchArchive: true,
-    canViewConfidence: true,
-    canAccessAPI: true,
-    canAccessPrivateBriefing: false,
-    archiveDaysBack: 'unlimited',
-  },
-  private_briefing: {
-    canViewScores: true,
-    canSearchArchive: true,
-    canViewConfidence: true,
-    canAccessAPI: true,
-    canAccessPrivateBriefing: true,
+    canEditAndPublish: true,
     archiveDaysBack: 'unlimited',
   },
 }

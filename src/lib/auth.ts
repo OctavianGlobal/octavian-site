@@ -36,7 +36,7 @@ export async function getProfile(): Promise<Profile | null> {
 export async function getSubscriptionTier(): Promise<SubscriptionTier> {
   const profile = await getProfile()
   if (!profile) return 'free'
-  if (profile.subscription_status !== 'active' && profile.subscription_status !== 'trialing') {
+  if (profile.subscription_status !== 'active') {
     return 'free'
   }
   return profile.subscription_tier ?? 'free'

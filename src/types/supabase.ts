@@ -6,16 +6,14 @@
 
 export type SubscriptionTier =
   | 'free'
-  | 'signal_watch'
+  | 'signal'
   | 'signal_plus'
   | 'analyst'
-  | 'analyst_pro'
-  | 'institutional'
-  | 'private_briefing'
+  | 'editor'
 
 export type SignalStatus = 'candidate' | 'published' | 'archived'
 export type SignalDomain = 'POWER' | 'MONEY' | 'RULES' | 'ENVIRONMENT' | 'TECHNOLOGY'
-export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'inactive' | null
+export type SubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'inactive' | null
 
 export interface Database {
   public: {

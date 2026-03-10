@@ -7,9 +7,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getSubscriptionTier, getTierPermissions } from '@/lib/auth'
 import type {
-  Signal,
-  Cluster,
-  ClusterScore,
   DashboardSignal,
   PublishedSignal,
   SignalDomain,
@@ -17,12 +14,35 @@ import type {
 
 // ── Dashboard — Signal Queue (candidates for editorial review) ────────────────
 
-export async function getDashboardData() {
+export async function getDashboardData(opts: {
+  domain?: SignalDomain
+  sort?: 'date' | 'score'
+  limit?: number
+  offset?: number
+} = {}) {
   const supabase = await createServerSupabaseClient()
   const tier = await getSubscriptionTier()
   const perms = getTierPermissions(tier)
 
-  const { data, error } = await supabase
+  const limit = opts.limit ?? 25
+  const sort = opts.sort ?? 'date'
+
+  // ── Step 1: resolve domain filter to cluster_ids ──
+  let clusterIdFilter: string[] | null = null
+  if (opts.domain) {
+    const { data: clusterRows } = await supabase
+      .from('clusters')
+      .select('id')
+      .eq('primary_domain', opts.domain)
+    clusterIdFilter = (clusterRows ?? []).map((c: any) => c.id)
+    // If no clusters match, return empty immediately
+    if (clusterIdFilter.length === 0) {
+      return { recentSignals: [], count: 0, tier, permissions: perms }
+    }
+  }
+
+  // ── Step 2: build signals query ──
+  let query = supabase
     .from('signals')
     .select(`
       id,
@@ -44,21 +64,41 @@ export async function getDashboardData() {
           ai_confidence
         )
       )
-    `)
+    `, { count: 'exact' })
     .eq('status', 'candidate')
-    .order('created_at', { ascending: false })
-    .limit(50)
+
+  if (clusterIdFilter) {
+    query = query.in('cluster_id', clusterIdFilter)
+  }
+
+  // For date sort, order in DB. For score sort, fetch and sort in JS.
+  if (sort === 'date') {
+    query = query.order('created_at', { ascending: false })
+    query = query.limit(limit)
+    if (opts.offset) {
+      query = query.range(opts.offset, opts.offset + limit - 1)
+    }
+  } else {
+    // Fetch larger window for score sort — we'll sort and slice in JS
+    // Use a reasonable cap to avoid fetching everything
+    query = query.order('created_at', { ascending: false }).limit(500)
+  }
+
+  const { data, count, error } = await query
 
   if (error) {
     console.error('[getDashboardData]', error.message)
-    return { recentSignals: [], tier, permissions: perms }
+    return { recentSignals: [], count: 0, tier, permissions: perms }
   }
 
   const rows = data as any[]
 
-  const recentSignals: DashboardSignal[] = rows.map((s) => {
+  // ── Step 3: map rows ──
+  let mapped: DashboardSignal[] = rows.map((s) => {
     const cluster = s.clusters ?? {}
-    const scores = Array.isArray(cluster.cluster_scores) ? (cluster.cluster_scores[0] ?? {}) : (cluster.cluster_scores ?? {})
+    const scores = Array.isArray(cluster.cluster_scores)
+      ? (cluster.cluster_scores[0] ?? {})
+      : (cluster.cluster_scores ?? {})
 
     const rawScore = scores.signal_score_raw ?? null
     const rawConfidence = scores.ai_confidence ?? null
@@ -83,14 +123,25 @@ export async function getDashboardData() {
       money_score: scores.money_score ?? null,
       rules_score: scores.rules_score ?? null,
       ai_confidence: rawConfidence,
-      // Tier-gated
-      score: perms.canViewScores ? rawScore : null,
+      score: perms.canViewSignalScore ? rawScore : null,
       confidence: perms.canViewConfidence ? rawConfidence : null,
     }
   })
 
+  // ── Step 4: sort and paginate for score sort ──
+  let totalCount = count ?? 0
+  if (sort === 'score') {
+    mapped.sort((a, b) => (b.signal_score_raw ?? 0) - (a.signal_score_raw ?? 0))
+    totalCount = mapped.length
+    const offset = opts.offset ?? 0
+    mapped = mapped.slice(offset, offset + limit)
+  }
+
+  console.log('[DEBUG] tier:', tier, 'sort:', sort, 'count:', totalCount)
+
   return {
-    recentSignals,
+    recentSignals: mapped,
+    count: totalCount,
     tier,
     permissions: perms,
   }
@@ -139,9 +190,10 @@ export async function getSignalForReview(id: string) {
 
   const s = data as any
   const cluster = s.clusters ?? {}
-  const scores = Array.isArray(cluster.cluster_scores) ? (cluster.cluster_scores[0] ?? {}) : (cluster.cluster_scores ?? {})
+  const scores = Array.isArray(cluster.cluster_scores)
+    ? (cluster.cluster_scores[0] ?? {})
+    : (cluster.cluster_scores ?? {})
 
-  // Resolve top_entities UUIDs to names
   let entityNames: string[] = []
   const entityIds: string[] = cluster.top_entities_jsonb ?? []
   if (entityIds.length > 0) {
@@ -152,7 +204,6 @@ export async function getSignalForReview(id: string) {
     entityNames = (entityRows ?? []).map((e: any) => e.name)
   }
 
-  // Resolve top_tags UUIDs to names + domains
   let tagNames: string[] = []
   const tagIds: string[] = cluster.top_tags_jsonb ?? []
   if (tagIds.length > 0) {
@@ -163,7 +214,6 @@ export async function getSignalForReview(id: string) {
     tagNames = (tagRows ?? []).map((t: any) => t.name)
   }
 
-  // Count source items
   const { count: itemCount } = await supabase
     .from('cluster_items')
     .select('*', { count: 'exact', head: true })
@@ -190,7 +240,7 @@ export async function getSignalForReview(id: string) {
   }
 }
 
-
+// ── Published briefs (briefs page — public) ───────────────────────────────────
 
 export async function getPublishedSignals(opts: {
   domain?: SignalDomain
@@ -200,6 +250,21 @@ export async function getPublishedSignals(opts: {
   const supabase = await createServerSupabaseClient()
   const tier = await getSubscriptionTier()
   const perms = getTierPermissions(tier)
+
+  const limit = opts.limit ?? 20
+
+  // Resolve domain filter to cluster_ids
+  let clusterIdFilter: string[] | null = null
+  if (opts.domain) {
+    const { data: clusterRows } = await supabase
+      .from('clusters')
+      .select('id')
+      .eq('primary_domain', opts.domain)
+    clusterIdFilter = (clusterRows ?? []).map((c: any) => c.id)
+    if (clusterIdFilter.length === 0) {
+      return { signals: [], count: 0 }
+    }
+  }
 
   let query = supabase
     .from('signals')
@@ -222,10 +287,14 @@ export async function getPublishedSignals(opts: {
     `, { count: 'exact' })
     .eq('status', 'published')
     .order('published_at', { ascending: false })
-    .limit(opts.limit ?? 20)
+    .limit(limit)
+
+  if (clusterIdFilter) {
+    query = query.in('cluster_id', clusterIdFilter)
+  }
 
   if (opts.offset) {
-    query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1)
+    query = query.range(opts.offset, opts.offset + limit - 1)
   }
 
   const { data, count, error } = await query
@@ -237,34 +306,28 @@ export async function getPublishedSignals(opts: {
 
   const rows = data as any[]
 
-  const signals: PublishedSignal[] = rows
-    .filter((s) => {
-      // If domain filter specified, match against cluster's primary_domain
-      if (opts.domain) {
-        return s.clusters?.primary_domain === opts.domain
-      }
-      return true
-    })
-    .map((s) => {
-      const cluster = s.clusters ?? {}
-      const scores = Array.isArray(cluster.cluster_scores) ? (cluster.cluster_scores[0] ?? {}) : (cluster.cluster_scores ?? {})
-      const rawScore = scores.signal_score_raw ?? null
-      const rawConfidence = scores.ai_confidence ?? null
+  const signals: PublishedSignal[] = rows.map((s) => {
+    const cluster = s.clusters ?? {}
+    const scores = Array.isArray(cluster.cluster_scores)
+      ? (cluster.cluster_scores[0] ?? {})
+      : (cluster.cluster_scores ?? {})
+    const rawScore = scores.signal_score_raw ?? null
+    const rawConfidence = scores.ai_confidence ?? null
 
-      return {
-        id: s.id,
-        cluster_id: s.cluster_id,
-        status: s.status,
-        published_at: s.published_at,
-        published_title: s.published_title,
-        published_body_md: s.published_body_md,
-        created_at: s.created_at,
-        primary_domain: cluster.primary_domain ?? null,
-        cluster_summary: cluster.cluster_summary ?? null,
-        score: perms.canViewScores ? rawScore : null,
-        confidence: perms.canViewConfidence ? rawConfidence : null,
-      }
-    })
+    return {
+      id: s.id,
+      cluster_id: s.cluster_id,
+      status: s.status,
+      published_at: s.published_at,
+      published_title: s.published_title,
+      published_body_md: s.published_body_md,
+      created_at: s.created_at,
+      primary_domain: cluster.primary_domain ?? null,
+      cluster_summary: cluster.cluster_summary ?? null,
+      score: perms.canViewSignalScore ? rawScore : null,
+      confidence: perms.canViewConfidence ? rawConfidence : null,
+    }
+  })
 
   return { signals, count: count ?? 0 }
 }
@@ -303,7 +366,9 @@ export async function getSignalById(id: string): Promise<PublishedSignal | null>
 
   const s = data as any
   const cluster = s.clusters ?? {}
-  const scores = Array.isArray(cluster.cluster_scores) ? (cluster.cluster_scores[0] ?? {}) : (cluster.cluster_scores ?? {})
+  const scores = Array.isArray(cluster.cluster_scores)
+    ? (cluster.cluster_scores[0] ?? {})
+    : (cluster.cluster_scores ?? {})
   const rawScore = scores.signal_score_raw ?? null
   const rawConfidence = scores.ai_confidence ?? null
 
@@ -317,15 +382,17 @@ export async function getSignalById(id: string): Promise<PublishedSignal | null>
     created_at: s.created_at,
     primary_domain: cluster.primary_domain ?? null,
     cluster_summary: cluster.cluster_summary ?? null,
-    score: perms.canViewScores ? rawScore : null,
+    score: perms.canViewSignalScore ? rawScore : null,
     confidence: perms.canViewConfidence ? rawConfidence : null,
   }
 }
 
-// ── Archive browse (paid tiers) ───────────────────────────────────────────────
+// ── Archive browse (Analyst tier — date range, both archived + published) ─────
 
 export async function getArchivedSignals(opts: {
   domain?: SignalDomain
+  dateFrom?: string
+  dateTo?: string
   limit?: number
   offset?: number
 } = {}): Promise<{ signals: PublishedSignal[]; count: number; restricted: boolean }> {
@@ -337,6 +404,20 @@ export async function getArchivedSignals(opts: {
   }
 
   const supabase = await createServerSupabaseClient()
+  const limit = opts.limit ?? 25
+
+  // Resolve domain filter to cluster_ids
+  let clusterIdFilter: string[] | null = null
+  if (opts.domain) {
+    const { data: clusterRows } = await supabase
+      .from('clusters')
+      .select('id')
+      .eq('primary_domain', opts.domain)
+    clusterIdFilter = (clusterRows ?? []).map((c: any) => c.id)
+    if (clusterIdFilter.length === 0) {
+      return { signals: [], count: 0, restricted: false }
+    }
+  }
 
   let query = supabase
     .from('signals')
@@ -357,18 +438,23 @@ export async function getArchivedSignals(opts: {
         )
       )
     `, { count: 'exact' })
-    .eq('status', 'archived')
+    .in('status', ['archived', 'published'])
     .order('published_at', { ascending: false })
-    .limit(opts.limit ?? 20)
+    .limit(limit)
 
-  if (opts.offset) {
-    query = query.range(opts.offset, opts.offset + (opts.limit ?? 20) - 1)
+  if (clusterIdFilter) {
+    query = query.in('cluster_id', clusterIdFilter)
   }
 
-  if (perms.archiveDaysBack !== 'unlimited') {
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - perms.archiveDaysBack)
-    query = query.gte('published_at', cutoff.toISOString())
+  if (opts.offset) {
+    query = query.range(opts.offset, opts.offset + limit - 1)
+  }
+
+  if (opts.dateFrom) {
+    query = query.gte('published_at', opts.dateFrom)
+  }
+  if (opts.dateTo) {
+    query = query.lte('published_at', opts.dateTo)
   }
 
   const { data, count, error } = await query
@@ -380,31 +466,28 @@ export async function getArchivedSignals(opts: {
 
   const rows = data as any[]
 
-  const signals: PublishedSignal[] = rows
-    .filter((s) => {
-      if (opts.domain) return s.clusters?.primary_domain === opts.domain
-      return true
-    })
-    .map((s) => {
-      const cluster = s.clusters ?? {}
-      const scores = Array.isArray(cluster.cluster_scores) ? (cluster.cluster_scores[0] ?? {}) : (cluster.cluster_scores ?? {})
-      const rawScore = scores.signal_score_raw ?? null
-      const rawConfidence = scores.ai_confidence ?? null
+  const signals: PublishedSignal[] = rows.map((s) => {
+    const cluster = s.clusters ?? {}
+    const scores = Array.isArray(cluster.cluster_scores)
+      ? (cluster.cluster_scores[0] ?? {})
+      : (cluster.cluster_scores ?? {})
+    const rawScore = scores.signal_score_raw ?? null
+    const rawConfidence = scores.ai_confidence ?? null
 
-      return {
-        id: s.id,
-        cluster_id: s.cluster_id,
-        status: s.status,
-        published_at: s.published_at,
-        published_title: s.published_title,
-        published_body_md: s.published_body_md,
-        created_at: s.created_at,
-        primary_domain: cluster.primary_domain ?? null,
-        cluster_summary: cluster.cluster_summary ?? null,
-        score: perms.canViewScores ? rawScore : null,
-        confidence: perms.canViewConfidence ? rawConfidence : null,
-      }
-    })
+    return {
+      id: s.id,
+      cluster_id: s.cluster_id,
+      status: s.status,
+      published_at: s.published_at,
+      published_title: s.published_title,
+      published_body_md: s.published_body_md,
+      created_at: s.created_at,
+      primary_domain: cluster.primary_domain ?? null,
+      cluster_summary: cluster.cluster_summary ?? null,
+      score: perms.canViewSignalScore ? rawScore : null,
+      confidence: perms.canViewConfidence ? rawConfidence : null,
+    }
+  })
 
   return { signals, count: count ?? 0, restricted: false }
 }

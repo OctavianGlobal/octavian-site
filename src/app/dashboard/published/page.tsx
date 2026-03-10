@@ -1,48 +1,46 @@
 import { isAdmin, isEditor } from "@/lib/auth";
-import { getDashboardData } from "@/lib/queries";
-import DashboardClient from "./DashboardClient";
+import { getPublishedSignals } from "@/lib/queries";
+import PublishedClient from "./PublishedClient";
 import type { SignalDomain } from "@/types/supabase";
 
 export const dynamic = 'force-dynamic'
 
 const PAGE_SIZE = 25;
 
-interface DashboardPageProps {
+interface PublishedPageProps {
   searchParams: Promise<{
     page?: string;
     domain?: string;
-    sort?: string;
+    from?: string;
+    to?: string;
   }>;
 }
 
-export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+export default async function PublishedPage({ searchParams }: PublishedPageProps) {
   const params = await searchParams;
   const page = Math.max(0, parseInt(params.page ?? "0", 10));
   const domain = params.domain as SignalDomain | undefined;
-  const sort = params.sort === 'score' ? 'score' : 'date';
+  const dateFrom = params.from;
+  const dateTo = params.to;
 
-  const [adminFlag, editorFlag, dashData] = await Promise.all([
+  const [adminFlag, editorFlag, { signals, count }] = await Promise.all([
     isAdmin(),
     isEditor(),
-    getDashboardData({
+    getPublishedSignals({
       domain,
-      sort,
       limit: PAGE_SIZE,
       offset: page * PAGE_SIZE,
     }),
   ]);
 
   return (
-    <DashboardClient
+    <PublishedClient
       isAdmin={adminFlag}
       isEditor={editorFlag}
-      signals={dashData.recentSignals}
-      count={dashData.count}
-      tier={dashData.tier}
-      permissions={dashData.permissions}
+      signals={signals}
+      count={count}
       page={page}
       domain={domain ?? null}
-      sort={sort}
     />
   );
 }

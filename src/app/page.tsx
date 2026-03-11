@@ -21,21 +21,21 @@ export default function ComingSoonPage() {
 
       {/* Shield mark — evenly inset inner shield */}
       <div style={{ marginBottom: "32px" }}>
-        <svg width="52" height="60" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path
-            d="M24 2L44 10V28C44 40 34 50 24 54C14 50 4 40 4 28V10L24 2Z"
-            stroke="#D4AF37"
-            strokeWidth="2.5"
-            fill="none"
-          />
-          <path
-            d="M24 8L38 15V28C38 37.5 32 45.5 24 48.5C16 45.5 10 37.5 10 28V15L24 8Z"
-            fill="#D4AF37"
-            fillOpacity="0.12"
-            stroke="#D4AF37"
-            strokeWidth="1.5"
-          />
-        </svg>
+        <svg width="48" height="56" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path
+    d="M24 2L44 10V28C44 40 34 50 24 54C14 50 4 40 4 28V10L24 2Z"
+    stroke="#D4AF37"
+    strokeWidth="2"
+    fill="none"
+  />
+  <path
+    d="M24 12L36 17V28C36 35.5 30.5 42 24 44.5C17.5 42 12 35.5 12 28V17L24 12Z"
+    fill="#D4AF37"
+    fillOpacity="0.10"
+    stroke="#D4AF37"
+    strokeWidth="1.25"
+  />
+</svg>
       </div>
 
       {/* Wordmark */}

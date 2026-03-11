@@ -94,6 +94,7 @@ export default function ArchiveClient({
     cursor: "pointer",
     fontFamily: "var(--font-jakarta), sans-serif",
     outline: "none",
+    width: "130px", 
   };
 
   return (

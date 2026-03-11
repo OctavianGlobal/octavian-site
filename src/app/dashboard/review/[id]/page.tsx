@@ -52,7 +52,8 @@ function fmt(value: number | null | undefined): string {
 }
 
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+  const resolvedParams = use(params);
+  const id = resolvedParams.id;
 
   const [signal, setSignal] = useState<SignalReviewData | null>(null);
   const [loading, setLoading] = useState(true);

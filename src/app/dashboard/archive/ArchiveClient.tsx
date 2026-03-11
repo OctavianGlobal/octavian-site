@@ -55,8 +55,6 @@ export default function ArchiveClient({
   const perms = TIER_PERMISSIONS[previewTier];
   const totalPages = Math.ceil(count / PAGE_SIZE);
 
-  // ── URL param helpers ────────────────────────────────────────────────────
-
   function pushParams(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
@@ -85,6 +83,18 @@ export default function ArchiveClient({
   function handleClearDates() {
     pushParams({ from: null, to: null, page: null });
   }
+
+  const dateInputStyle: React.CSSProperties = {
+    background: "#ffffff",
+    border: "1px solid #d0d0d0",
+    color: "#1a1a1a",
+    fontSize: "13px",
+    padding: "6px 10px",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontFamily: "var(--font-jakarta), sans-serif",
+    outline: "none",
+  };
 
   return (
     <>
@@ -142,25 +152,15 @@ export default function ArchiveClient({
       <div className="dash-shell">
         <aside className="dash-sidebar">
           <div className="dash-sidebar-title">Navigation</div>
-          <Link href="/dashboard" className="dash-nav-link">
-            Signal Queue
-          </Link>
-          <Link href="/dashboard/published" className="dash-nav-link">
-            Published Briefs
-          </Link>
-          <Link href="/dashboard/archive" className="dash-nav-link active">
-            Archive
-          </Link>
+          <Link href="/dashboard" className="dash-nav-link">Signal Queue</Link>
+          <Link href="/dashboard/published" className="dash-nav-link">Published Briefs</Link>
+          <Link href="/dashboard/archive" className="dash-nav-link active">Archive</Link>
 
           {isAdmin && (
             <div style={{ marginTop: "32px" }}>
               <div className="dash-sidebar-title">Admin</div>
-              <Link href="/dashboard/sources" className="dash-nav-link">
-                Sources
-              </Link>
-              <Link href="/dashboard/users" className="dash-nav-link">
-                Users
-              </Link>
+              <Link href="/dashboard/sources" className="dash-nav-link">Sources</Link>
+              <Link href="/dashboard/users" className="dash-nav-link">Users</Link>
               <PipelineHealth />
             </div>
           )}
@@ -179,20 +179,17 @@ export default function ArchiveClient({
             </div>
           </div>
 
-          {/* ── Restricted state ── */}
           {restricted ? (
             <div style={{ padding: "64px 0", textAlign: "center" }}>
               <div style={{ color: "var(--muted)", fontSize: "14px", marginBottom: "16px" }}>
-                Archive access requires Signal Plus or higher.
+                Archive access requires Analyst tier or higher.
               </div>
-              <Link href="/upgrade" className="btn-gold">
-                Upgrade to unlock →
-              </Link>
+              <Link href="/upgrade" className="btn-gold">Upgrade to unlock →</Link>
             </div>
           ) : (
             <>
               {/* ── Filters ── */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
 
                 {/* Domain pills */}
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -228,50 +225,56 @@ export default function ArchiveClient({
                   ))}
                 </div>
 
-                {/* Date range — Analyst+ only */}
+                {/* Date range */}
                 {perms.canSearchArchive && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                      Date Range:
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    flexWrap: "wrap",
+                    background: "#fafafa",
+                    border: "1px solid var(--line)",
+                    borderRadius: "8px",
+                    padding: "12px 16px",
+                  }}>
+                    <span style={{
+                      fontSize: "11px",
+                      color: "#888",
+                      letterSpacing: "0.10em",
+                      textTransform: "uppercase",
+                      fontFamily: "var(--font-jakarta), sans-serif",
+                      fontWeight: 600,
+                      flexShrink: 0,
+                    }}>
+                      Date Range
                     </span>
                     <input
                       type="date"
                       value={dateFrom ?? ""}
                       onChange={(e) => handleDateFrom(e.target.value)}
-                      style={{
-                        background: "#111",
-                        border: "1px solid #333",
-                        color: "var(--gold)",
-                        fontSize: "12px",
-                        padding: "4px 8px",
-                        cursor: "pointer",
-                      }}
+                      style={dateInputStyle}
                     />
-                    <span style={{ color: "var(--muted)", fontSize: "12px" }}>→</span>
+                    <span style={{ color: "#aaa", fontSize: "13px" }}>→</span>
                     <input
                       type="date"
                       value={dateTo ?? ""}
                       onChange={(e) => handleDateTo(e.target.value)}
-                      style={{
-                        background: "#111",
-                        border: "1px solid #333",
-                        color: "var(--gold)",
-                        fontSize: "12px",
-                        padding: "4px 8px",
-                        cursor: "pointer",
-                      }}
+                      style={dateInputStyle}
                     />
                     {(dateFrom || dateTo) && (
                       <button
                         onClick={handleClearDates}
                         style={{
                           background: "none",
-                          border: "none",
-                          color: "var(--muted)",
+                          border: "1px solid #d0d0d0",
+                          color: "#888",
                           fontSize: "11px",
                           cursor: "pointer",
                           letterSpacing: "0.08em",
                           textTransform: "uppercase",
+                          borderRadius: "6px",
+                          padding: "6px 10px",
+                          fontFamily: "var(--font-jakarta), sans-serif",
                         }}
                       >
                         ✕ Clear
@@ -298,20 +301,16 @@ export default function ArchiveClient({
                           {(sig.published_at ?? sig.created_at)?.slice(0, 10) ?? "—"}
                         </span>
                         <span className="meta-dot" />
-                        <span
-                          className={`tag-pill ${DOMAIN_COLORS[sig.primary_domain ?? "POWER"] ?? ""}`}
-                        >
+                        <span className={`tag-pill ${DOMAIN_COLORS[sig.primary_domain ?? "POWER"] ?? ""}`}>
                           {sig.primary_domain ?? "POWER"}
                         </span>
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            color: sig.status === "published" ? "#4caf50" : "var(--muted)",
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
-                            marginLeft: "6px",
-                          }}
-                        >
+                        <span style={{
+                          fontSize: "10px",
+                          color: sig.status === "published" ? "#4caf50" : "var(--muted)",
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          marginLeft: "6px",
+                        }}>
                           {sig.status}
                         </span>
                       </div>
@@ -320,9 +319,7 @@ export default function ArchiveClient({
                     <div style={{ textAlign: "right", flexShrink: 0, width: "110px" }}>
                       {perms.canViewSignalScore && sig.score !== null ? (
                         <>
-                          <div className="queue-score">
-                            {Math.round(sig.score * 100)}
-                          </div>
+                          <div className="queue-score">{Math.round(sig.score * 100)}</div>
                           <div className="queue-score-label">Signal Score</div>
                         </>
                       ) : (
@@ -358,6 +355,20 @@ export default function ArchiveClient({
                   paddingBottom: "32px",
                 }}>
                   <button
+                    onClick={() => handlePageChange(0)}
+                    disabled={page === 0}
+                    style={{
+                      background: "#1a1a1a",
+                      border: "1px solid #333",
+                      color: page === 0 ? "#444" : "var(--gold)",
+                      fontSize: "12px",
+                      padding: "6px 14px",
+                      cursor: page === 0 ? "default" : "pointer",
+                    }}
+                  >
+                    « First
+                  </button>
+                  <button
                     onClick={() => handlePageChange(page - 1)}
                     disabled={page === 0}
                     style={{
@@ -387,6 +398,20 @@ export default function ArchiveClient({
                     }}
                   >
                     Next →
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(totalPages - 1)}
+                    disabled={page >= totalPages - 1}
+                    style={{
+                      background: "#1a1a1a",
+                      border: "1px solid #333",
+                      color: page >= totalPages - 1 ? "#444" : "var(--gold)",
+                      fontSize: "12px",
+                      padding: "6px 14px",
+                      cursor: page >= totalPages - 1 ? "default" : "pointer",
+                    }}
+                  >
+                    Last »
                   </button>
                 </div>
               )}

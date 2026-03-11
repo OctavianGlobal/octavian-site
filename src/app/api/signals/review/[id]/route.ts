@@ -18,7 +18,7 @@ export async function GET(
     const supabase = createServiceClient() as any
     const { id } = await params
 
-    // Fetch signal + cluster + scores
+    // Fetch signal + cluster + scores (now includes all score breakdown fields)
     const { data, error } = await supabase
       .from('signals')
       .select(`
@@ -40,6 +40,13 @@ export async function GET(
             power_score,
             money_score,
             rules_score,
+            evidence_score,
+            impact_score,
+            novelty_score,
+            anomaly_score,
+            credibility_score,
+            corroboration_score,
+            severity_modifier,
             ai_confidence
           )
         )
@@ -53,7 +60,11 @@ export async function GET(
 
     const s = data as any
     const cluster = s.clusters ?? {}
-    const scores = cluster.cluster_scores ?? {}
+
+    // cluster_scores can come back as array or object depending on Supabase join
+    const scores = Array.isArray(cluster.cluster_scores)
+      ? (cluster.cluster_scores[0] ?? {})
+      : (cluster.cluster_scores ?? {})
 
     // Resolve entity UUIDs → names
     let entityNames: string[] = []
@@ -83,6 +94,27 @@ export async function GET(
       .select('*', { count: 'exact', head: true })
       .eq('cluster_id', cluster.id)
 
+    // Fetch source items (headline, url, snippet) for editor context
+    const { data: clusterItemRows } = await supabase
+      .from('cluster_items')
+      .select('item_id')
+      .eq('cluster_id', cluster.id)
+      .limit(5)
+
+    let sourceItems: { title: string | null; url: string | null; snippet: string | null }[] = []
+    const itemIds = (clusterItemRows ?? []).map((ci: any) => ci.item_id)
+    if (itemIds.length > 0) {
+      const { data: itemRows } = await supabase
+        .from('items')
+        .select('title, url, snippet')
+        .in('id', itemIds)
+      sourceItems = (itemRows ?? []).map((item: any) => ({
+        title: item.title ?? null,
+        url: item.url ?? null,
+        snippet: item.snippet ?? null,
+      }))
+    }
+
     return NextResponse.json({
       id: s.id,
       cluster_id: s.cluster_id,
@@ -96,11 +128,19 @@ export async function GET(
       entity_names: entityNames,
       tag_names: tagNames,
       item_count: itemCount ?? 0,
+      source_items: sourceItems,
       signal_score_raw: scores.signal_score_raw ?? null,
       power_score: scores.power_score ?? null,
       money_score: scores.money_score ?? null,
       rules_score: scores.rules_score ?? null,
       ai_confidence: scores.ai_confidence ?? null,
+      evidence_score: scores.evidence_score ?? null,
+      impact_score: scores.impact_score ?? null,
+      novelty_score: scores.novelty_score ?? null,
+      anomaly_score: scores.anomaly_score ?? null,
+      credibility_score: scores.credibility_score ?? null,
+      corroboration_score: scores.corroboration_score ?? null,
+      severity_modifier: scores.severity_modifier ?? null,
     })
   } catch (err) {
     console.error('[api/signals/review/[id]]', err)

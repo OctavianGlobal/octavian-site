@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -59,29 +58,84 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="auth-shell">
-      <div className="auth-card">
-        <div className="auth-logo">
-          <Image
-            src="/assets/octavian-logo.svg"
-            alt="Octavian Global"
-            width={80}
-            height={80}
-          />
+    <div style={{
+      minHeight: "100vh",
+      background: "#0a0a0a",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "32px",
+    }}>
+      <div style={{
+        background: "#ffffff",
+        borderRadius: "14px",
+        padding: "48px 40px",
+        width: "100%",
+        maxWidth: "420px",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.40)",
+      }}>
+
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: "24px" }}>
+          <svg width="48" height="56" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M24 2L44 10V28C44 40 34 50 24 54C14 50 4 40 4 28V10L24 2Z"
+              stroke="#D4AF37"
+              strokeWidth="1.5"
+              fill="none"
+            />
+            <path
+              d="M24 12L36 17V28C36 35.5 30.5 42 24 44.5C17.5 42 12 35.5 12 28V17L24 12Z"
+              fill="#D4AF37"
+              fillOpacity="0.08"
+              stroke="#D4AF37"
+              strokeWidth="0.75"
+            />
+          </svg>
         </div>
-        <h1 className="auth-title">OCTAVIAN GLOBAL</h1>
-        <p className="auth-sub">
+
+        {/* Wordmark */}
+        <h1 style={{
+          fontFamily: "Cinzel, serif",
+          fontSize: "20px",
+          letterSpacing: "0.18em",
+          color: "#1a1a1a",
+          textAlign: "center",
+          margin: "0 0 6px",
+          fontWeight: 600,
+        }}>
+          OCTAVIAN GLOBAL
+        </h1>
+        <p style={{
+          fontFamily: "var(--font-jakarta), sans-serif",
+          fontSize: "13px",
+          color: "#888",
+          textAlign: "center",
+          margin: "0 0 32px",
+          letterSpacing: "0.04em",
+        }}>
           {mode === "login" ? "Sign in to your account" : "Create a free account"}
         </p>
 
         {status === "error" && errorMsg && (
-          <div className="auth-error">{errorMsg}</div>
+          <div style={{
+            background: "#fff5f5",
+            border: "1px solid #fecaca",
+            borderRadius: "8px",
+            padding: "10px 14px",
+            color: "#c0392b",
+            fontSize: "13px",
+            marginBottom: "16px",
+            fontFamily: "var(--font-jakarta), sans-serif",
+          }}>
+            {errorMsg}
+          </div>
         )}
 
         <form onSubmit={handleSubmit}>
           {mode === "signup" && (
             <div className="field">
-              <label htmlFor="name">Name</label>
+              <label htmlFor="name" style={{ color: "#333" }}>Name</label>
               <input
                 id="name"
                 name="name"
@@ -89,12 +143,13 @@ export default function LoginPage() {
                 autoComplete="name"
                 required
                 placeholder="Your name"
+                style={{ background: "#fafafa", borderColor: "#e0e0e0", color: "#1a1a1a" }}
               />
             </div>
           )}
 
           <div className="field">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email" style={{ color: "#333" }}>Email</label>
             <input
               id="email"
               name="email"
@@ -102,11 +157,12 @@ export default function LoginPage() {
               autoComplete="email"
               required
               placeholder="you@example.com"
+              style={{ background: "#fafafa", borderColor: "#e0e0e0", color: "#1a1a1a" }}
             />
           </div>
 
           <div className="field">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password" style={{ color: "#333" }}>Password</label>
             <input
               id="password"
               name="password"
@@ -115,38 +171,52 @@ export default function LoginPage() {
               required
               placeholder="••••••••"
               minLength={mode === "signup" ? 8 : undefined}
+              style={{ background: "#fafafa", borderColor: "#e0e0e0", color: "#1a1a1a" }}
             />
           </div>
 
           <button
-            className="btn"
             type="submit"
             disabled={status === "loading"}
-            style={{ width: "100%", justifyContent: "center", marginTop: "8px" }}
+            style={{
+              width: "100%",
+              padding: "12px",
+              marginTop: "8px",
+              background: "#1a1a1a",
+              color: "#D4AF37",
+              border: "none",
+              borderRadius: "8px",
+              fontFamily: "Cinzel, serif",
+              fontSize: "13px",
+              letterSpacing: "0.12em",
+              cursor: status === "loading" ? "not-allowed" : "pointer",
+              opacity: status === "loading" ? 0.7 : 1,
+              transition: "opacity 0.15s",
+            }}
           >
             {status === "loading"
               ? mode === "login" ? "Signing in…" : "Creating account…"
-              : mode === "login" ? "Sign In →" : "Create Account →"}
+              : mode === "login" ? "SIGN IN →" : "CREATE ACCOUNT →"}
           </button>
         </form>
 
         <div style={{ textAlign: "center", marginTop: "16px" }}>
           {mode === "login" ? (
-            <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "12px" }}>
+            <span style={{ color: "#888", fontSize: "12px", fontFamily: "var(--font-jakarta), sans-serif" }}>
               No account?{" "}
               <button
                 onClick={() => { setMode("signup"); setStatus("idle"); setErrorMsg(""); }}
-                style={{ color: "rgba(212,175,55,0.8)", background: "none", border: "none", cursor: "pointer", fontSize: "12px" }}
+                style={{ color: "#D4AF37", background: "none", border: "none", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-jakarta), sans-serif" }}
               >
                 Create one free
               </button>
             </span>
           ) : (
-            <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "12px" }}>
+            <span style={{ color: "#888", fontSize: "12px", fontFamily: "var(--font-jakarta), sans-serif" }}>
               Already have an account?{" "}
               <button
                 onClick={() => { setMode("login"); setStatus("idle"); setErrorMsg(""); }}
-                style={{ color: "rgba(212,175,55,0.8)", background: "none", border: "none", cursor: "pointer", fontSize: "12px" }}
+                style={{ color: "#D4AF37", background: "none", border: "none", cursor: "pointer", fontSize: "12px", fontFamily: "var(--font-jakarta), sans-serif" }}
               >
                 Sign in
               </button>
@@ -155,7 +225,7 @@ export default function LoginPage() {
         </div>
 
         <div style={{ textAlign: "center", marginTop: "20px" }}>
-          <Link href="/" style={{ color: "rgba(212,175,55,0.6)", fontSize: "12px", letterSpacing: "0.08em" }}>
+          <Link href="/" style={{ color: "#aaa", fontSize: "12px", letterSpacing: "0.08em", fontFamily: "var(--font-jakarta), sans-serif" }}>
             ← Back to Octavian Global
           </Link>
         </div>

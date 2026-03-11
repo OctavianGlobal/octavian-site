@@ -4,6 +4,12 @@ import Link from "next/link";
 import { useState, useEffect, useCallback, use } from "react";
 import Footer from "@/components/Footer";
 
+interface SourceItem {
+  title: string | null;
+  url: string | null;
+  snippet: string | null;
+}
+
 interface SignalReviewData {
   id: string;
   cluster_id: string;
@@ -17,6 +23,7 @@ interface SignalReviewData {
   entity_names: string[];
   tag_names: string[];
   item_count: number;
+  source_items: SourceItem[];
   signal_score_raw: number | null;
   power_score: number | null;
   money_score: number | null;
@@ -38,6 +45,11 @@ const DOMAIN_COLORS: Record<string, string> = {
   ENVIRONMENT: "#00897b",
   TECHNOLOGY: "#8e24aa",
 };
+
+function fmt(value: number | null | undefined): string {
+  if (value === null || value === undefined || isNaN(value)) return "—";
+  return (value * 100).toFixed(0);
+}
 
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -64,8 +76,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     load();
   }, [id]);
 
-  // ── NO auto-draft on load — editor decides when to use AI ──
-
   const handleDraft = useCallback(async () => {
     if (!signal) return;
     setDrafting(true);
@@ -77,15 +87,14 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
         body: JSON.stringify({ signal_id: id }),
       });
       if (!res.ok) throw new Error("Draft failed");
-      const { draft, suggested_title } = await res.json();
+      const { draft } = await res.json();
       setBody(draft);
-      if (suggested_title && !title) setTitle(suggested_title);
     } catch {
       setDraftError("Draft failed. Try again.");
     } finally {
       setDrafting(false);
     }
-  }, [signal, id, title]);
+  }, [signal, id]);
 
   async function handlePublish() {
     if (!title.trim()) return;
@@ -133,8 +142,13 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     </div>
   );
 
-  const scorePct = signal.signal_score_raw !== null ? Math.round(signal.signal_score_raw * 100) : null;
-  const domains: string[] = signal.domains_jsonb?.length ? signal.domains_jsonb : signal.primary_domain ? [signal.primary_domain] : [];
+  const scorePct = signal.signal_score_raw !== null && !isNaN(signal.signal_score_raw)
+    ? Math.round(signal.signal_score_raw * 100)
+    : null;
+
+  const domains: string[] = signal.domains_jsonb?.length
+    ? signal.domains_jsonb
+    : signal.primary_domain ? [signal.primary_domain] : [];
 
   if (status === "published") return (
     <>
@@ -180,6 +194,75 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               <p style={{ color: "var(--muted)", fontSize: "12px", marginBottom: "24px" }}>
                 Signal detected {signal.created_at?.slice(0, 10)} · {signal.item_count} source item{signal.item_count !== 1 ? "s" : ""}
               </p>
+
+              {/* ── Source context ── */}
+              {(signal.source_items ?? []).length > 0 && (
+                <div style={{
+                  background: "#fafafa",
+                  border: "1px solid #e6e6e6",
+                  borderRadius: "8px",
+                  padding: "16px",
+                  marginBottom: "24px",
+                }}>
+                  <div style={{
+                    fontSize: "11px",
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    color: "#888",
+                    marginBottom: "12px",
+                    fontFamily: "var(--font-jakarta), sans-serif",
+                  }}>
+                    Source Items
+                  </div>
+                  {signal.source_items.map((item, i) => (
+                    <div key={i} style={{
+                      paddingBottom: i < signal.source_items.length - 1 ? "12px" : "0",
+                      marginBottom: i < signal.source_items.length - 1 ? "12px" : "0",
+                      borderBottom: i < signal.source_items.length - 1 ? "1px solid #ebebeb" : "none",
+                    }}>
+                      {item.title && (
+                        <div style={{
+                          fontFamily: "var(--font-jakarta), sans-serif",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: "#1a1a1a",
+                          marginBottom: "4px",
+                        }}>
+                          {item.url ? (
+                            <a href={item.url} target="_blank" rel="noopener noreferrer"
+                              style={{ color: "#1a1a1a", textDecoration: "underline", textDecorationColor: "#ccc" }}>
+                              {item.title}
+                            </a>
+                          ) : item.title}
+                        </div>
+                      )}
+                      {item.url && (
+                        <div style={{
+                          fontSize: "11px",
+                          color: "#888",
+                          marginBottom: item.snippet ? "4px" : "0",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          fontFamily: "var(--font-jakarta), sans-serif",
+                        }}>
+                          {item.url}
+                        </div>
+                      )}
+                      {item.snippet && (
+                        <div style={{
+                          fontSize: "12px",
+                          color: "#555",
+                          lineHeight: 1.6,
+                          fontFamily: "var(--font-jakarta), sans-serif",
+                        }}>
+                          {item.snippet}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="field">
                 <label>Published Title</label>
@@ -246,11 +329,10 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
 
-            {/* ── Right: full intelligence panel ── */}
+            {/* ── Right: intelligence panel ── */}
             <div style={{ position: "sticky", top: "24px" }}>
               <div className="card" style={{ padding: "22px" }}>
 
-                {/* Signal score */}
                 <div style={{ fontSize: "11px", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "16px" }}>
                   Signal Intelligence
                 </div>
@@ -289,14 +371,16 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                       <span className="domain-bar-label">{label}</span>
                       <div className="domain-bar-track">
                         <div className={`domain-bar-fill ${cls}`}
-                          style={{ width: value !== null ? `${Math.min((value / 5) * 100, 100)}%` : "0%" }} />
+                          style={{ width: value !== null && !isNaN(value) ? `${Math.min((value / 5) * 100, 100)}%` : "0%" }} />
                       </div>
-                      <span className="domain-bar-value">{value !== null ? value.toFixed(1) : "—"}</span>
+                      <span className="domain-bar-value">
+                        {value !== null && !isNaN(value) ? value.toFixed(1) : "—"}
+                      </span>
                     </div>
                   ))}
                 </div>
 
-                {/* Score components */}
+                {/* Score breakdown */}
                 <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", marginBottom: "14px" }}>
                   <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "10px" }}>
                     Score Breakdown
@@ -306,31 +390,21 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                     { label: "Impact", value: signal.impact_score },
                     { label: "Novelty", value: signal.novelty_score },
                     { label: "Anomaly", value: signal.anomaly_score },
+                    { label: "Credibility", value: signal.credibility_score },
+                    { label: "Corroboration", value: signal.corroboration_score },
                   ].map(({ label, value }) => (
                     <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "5px" }}>
                       <span style={{ color: "var(--muted)" }}>{label}</span>
                       <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
-                        {value !== null ? (value * 100).toFixed(0) : "—"}
+                        {fmt(value)}
                       </span>
                     </div>
                   ))}
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "5px" }}>
-                    <span style={{ color: "var(--muted)" }}>Credibility</span>
-                    <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
-                      {signal.credibility_score !== null ? (signal.credibility_score * 100).toFixed(0) : "—"}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                    <span style={{ color: "var(--muted)" }}>Corroboration</span>
-                    <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
-                      {signal.corroboration_score !== null ? (signal.corroboration_score * 100).toFixed(0) : "—"}
-                    </span>
-                  </div>
                 </div>
 
                 {/* Meta */}
                 <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>
-                  {signal.ai_confidence !== null && (
+                  {signal.ai_confidence !== null && !isNaN(signal.ai_confidence) && (
                     <div style={{ marginBottom: "4px" }}>
                       AI Confidence: <strong style={{ color: "var(--ink)" }}>{Math.round(signal.ai_confidence * 100)}%</strong>
                     </div>

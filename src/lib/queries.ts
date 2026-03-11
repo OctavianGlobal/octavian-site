@@ -12,11 +12,12 @@ import type {
   SignalDomain,
 } from '@/types/supabase'
 
-// ── Dashboard — Signal Queue (candidates for editorial review) ────────────────
+// ── Dashboard — Signal Queue ──────────────────────────────────────────────────
 
 export async function getDashboardData(opts: {
   domain?: SignalDomain
   sort?: 'date' | 'score'
+  dir?: 'asc' | 'desc'
   limit?: number
   offset?: number
 } = {}) {
@@ -26,6 +27,8 @@ export async function getDashboardData(opts: {
 
   const limit = opts.limit ?? 25
   const sort = opts.sort ?? 'date'
+  const dir = opts.dir ?? 'desc'
+  const ascending = dir === 'asc'
 
   // ── Step 1: resolve domain filter to cluster_ids ──
   let clusterIdFilter: string[] | null = null
@@ -71,12 +74,13 @@ export async function getDashboardData(opts: {
   }
 
   if (sort === 'date') {
-    query = query.order('created_at', { ascending: false })
+    query = query.order('created_at', { ascending })
     query = query.limit(limit)
     if (opts.offset) {
       query = query.range(opts.offset, opts.offset + limit - 1)
     }
   } else {
+    // score sort — fetch all, sort in memory
     query = query.order('created_at', { ascending: false }).limit(500)
   }
 
@@ -127,7 +131,11 @@ export async function getDashboardData(opts: {
   // ── Step 4: sort and paginate for score sort ──
   let totalCount = count ?? 0
   if (sort === 'score') {
-    mapped.sort((a, b) => (b.signal_score_raw ?? 0) - (a.signal_score_raw ?? 0))
+    mapped.sort((a, b) =>
+      ascending
+        ? (a.signal_score_raw ?? 0) - (b.signal_score_raw ?? 0)
+        : (b.signal_score_raw ?? 0) - (a.signal_score_raw ?? 0)
+    )
     totalCount = mapped.length
     const offset = opts.offset ?? 0
     mapped = mapped.slice(offset, offset + limit)
@@ -244,7 +252,7 @@ export async function getSignalForReview(id: string) {
   }
 }
 
-// ── Published briefs (briefs page — public) ───────────────────────────────────
+// ── Published briefs (public) ─────────────────────────────────────────────────
 
 export async function getPublishedSignals(opts: {
   domain?: SignalDomain
@@ -390,7 +398,7 @@ export async function getSignalById(id: string): Promise<PublishedSignal | null>
   }
 }
 
-// ── Archive browse (Analyst tier — date range, both archived + published) ─────
+// ── Archive browse ────────────────────────────────────────────────────────────
 
 export async function getArchivedSignals(opts: {
   domain?: SignalDomain

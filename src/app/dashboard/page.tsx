@@ -5,13 +5,14 @@ import type { SignalDomain } from "@/types/supabase";
 
 export const dynamic = 'force-dynamic'
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 50;
 
 interface DashboardPageProps {
   searchParams: Promise<{
     page?: string;
     domain?: string;
     sort?: string;
+    dir?: string;
   }>;
 }
 
@@ -20,6 +21,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const page = Math.max(0, parseInt(params.page ?? "0", 10));
   const domain = params.domain as SignalDomain | undefined;
   const sort = params.sort === 'score' ? 'score' : 'date';
+  const dir = params.dir === 'asc' ? 'asc' : 'desc';
 
   const [adminFlag, editorFlag, dashData] = await Promise.all([
     isAdmin(),
@@ -27,6 +29,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     getDashboardData({
       domain,
       sort,
+      dir,
       limit: PAGE_SIZE,
       offset: page * PAGE_SIZE,
     }),
@@ -43,6 +46,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       page={page}
       domain={domain ?? null}
       sort={sort}
+      dir={dir}
     />
   );
 }

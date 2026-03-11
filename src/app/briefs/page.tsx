@@ -9,18 +9,18 @@ export const metadata: Metadata = {
   description: "Strategic intelligence briefs archive.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function BriefsPage() {
   const { signals } = await getPublishedSignals({ limit: 20 });
 
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>
-      <Masthead tagline="Briefs" subtag="Strategic Intelligence Archive" />
+      <Masthead tagline="Briefs" />
 
       <main id="main" className="page">
         <section className="section container">
-          <h2 className="page-title">Briefs</h2>
-          <p className="page-lead">Strategic intelligence archive.</p>
 
           <div className="brief-list" role="list">
             {signals.length === 0 && (
@@ -42,10 +42,7 @@ export default async function BriefsPage() {
                           })
                         : "—"}
                     </span>
-                    <span className="meta-dot" />
-                    <span className="meta-item">
-                      Domain: {signal.primary_domain ?? "—"}
-                    </span>
+                   
                   </div>
                   <p className="brief-desc">
                     {signal.cluster_summary ?? ""}
@@ -59,6 +56,7 @@ export default async function BriefsPage() {
               </article>
             ))}
           </div>
+
         </section>
       </main>
 

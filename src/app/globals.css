@@ -251,8 +251,6 @@ a:hover { text-decoration: underline; }
 
 /* ── Brief List ──────────────────────────────────────────────── */
 .brief-list {
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
   background: #ffffff;
 }
 .brief-row {
@@ -260,9 +258,9 @@ a:hover { text-decoration: underline; }
   gap: 18px;
   justify-content: space-between;
   padding: 18px 0;
-  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
-.brief-row:first-child { border-top: none; }
+.brief-row:last-child { border-bottom: none; }
 .brief-main { min-width: 0; }
 .brief-title {
   margin: 0 0 6px;
@@ -528,7 +526,11 @@ textarea { min-height: 140px; resize: vertical; }
   .dash-shell { grid-template-columns: 1fr; }
   .dash-sidebar { display: none; }
   .dash-main { padding: 20px; }
- .queue-row { flex-direction: column; }
+  .queue-row { flex-direction: column; }
   .tagline { font-size: 20px; }
   .subtag { font-size: 13px; }
+}
+
+html {
+  background: #0a0a0a;
 }

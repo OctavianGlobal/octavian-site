@@ -14,9 +14,7 @@ const anthropic = new Anthropic({
 
 const SYSTEM_PROMPT = `You are a strategic intelligence analyst for Octavian Global, a signal intelligence platform. You write concise, authoritative briefs for senior analysts and decision-makers.
 
-BRIEF FORMAT — follow this exactly, in markdown:
-
-**[Title]**
+BRIEF FORMAT — follow this exactly, in markdown. Do NOT include a title — the editor writes the title separately.
 
 **Signal**
 One paragraph (2-4 sentences) explaining what happened. Factual, direct, no editorializing.
@@ -46,7 +44,7 @@ VOICE RULES:
 
 LENGTH: 120–220 words total. If you exceed 220 words, cut the weakest bullet.
 
-Return ONLY the brief in markdown. No preamble, no explanation, no commentary.`
+Return ONLY the brief in markdown. No title. No preamble, no explanation, no commentary.`
 
 
 export async function POST(request: NextRequest) {
@@ -150,7 +148,7 @@ export async function POST(request: NextRequest) {
           month: 'long', day: 'numeric', year: 'numeric'
         })
 
-    const userPrompt = `Write an Octavian Global brief for the following signal.
+    const userPrompt = `Write an Octavian Global brief for the following signal. Do not include a title.
 
 SIGNAL DATA:
 - Summary: ${cluster.cluster_summary ?? 'No summary available'}
@@ -163,7 +161,7 @@ ${entityNames.length ? `- Key entities: ${entityNames.join(', ')}` : ''}
 ${tagNames.length ? `- Topics: ${tagNames.join(', ')}` : ''}
 ${sourceNames.length ? `- Sources: ${sourceNames.join(', ')}` : ''}
 
-Write the brief now.`
+Write the brief now. Start directly with **Signal** — no title.`
 
     const message = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
@@ -173,10 +171,8 @@ Write the brief now.`
     })
 
     const draft = (message.content[0] as any).text?.trim() ?? ''
-    const titleMatch = draft.match(/^\*\*(.+?)\*\*/m)
-    const suggested_title = titleMatch ? titleMatch[1].trim() : null
 
-    return NextResponse.json({ draft, suggested_title })
+    return NextResponse.json({ draft })
 
   } catch (err) {
     console.error('[api/signals/draft]', err)

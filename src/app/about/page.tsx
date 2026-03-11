@@ -12,56 +12,66 @@ export default function AboutPage() {
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>
-      <Masthead tagline="About" subtag="Strategic Intelligence Briefs" />
+      <Masthead tagline="About" />
 
       <main id="main" className="page">
-        <section className="section container">
-          <h2 className="page-title">About Octavian Global</h2>
-          <p className="page-lead">
-            Octavian Global publishes structured intelligence briefs focused on early signals, cross-domain patterns,
-            and strategic risk. The objective is clarity: what is changing, why it matters, and what to watch next.
-          </p>
+        <section className="section container" style={{ maxWidth: "720px", margin: "0 auto" }}>
 
-          <div className="prose">
-            <h2>Positioning</h2>
-            <p>
-              This is not a general news site. Briefs are written as analytic memos: compact, sourced, and structured.
+          <h1 style={{
+            fontFamily: "Cinzel, Georgia, serif",
+            fontSize: "clamp(20px, 3vw, 30px)",
+            letterSpacing: "0.04em",
+            color: "#1a1a1a",
+            lineHeight: 1.3,
+            marginBottom: "32px",
+            fontWeight: 700,
+          }}>
+            About Octavian Global
+          </h1>
+
+          <div style={{ fontFamily: "var(--font-jakarta), sans-serif", fontSize: "16px", lineHeight: 1.8, color: "#2a2a2a" }}>
+
+            <p style={{ marginBottom: "24px" }}>
+              Octavian Global publishes structured intelligence briefs focused on early signals, cross-domain patterns,
+              and strategic risk. The objective is clarity: what is changing, why it matters, and what to watch next.
+            </p>
+
+            <p style={{ marginBottom: "24px", fontWeight: 700, fontSize: "13px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#1a1a1a" }}>
+              Positioning
+            </p>
+            <p style={{ marginBottom: "24px" }}>
+              This is not a general news site. Briefs are written as analytic memos — compact, sourced, and structured.
               The goal is to identify emerging patterns before narratives harden and before institutions are forced into
               reactive posture.
             </p>
 
-            <h2>Domains</h2>
-            <p>Coverage is intentionally limited to areas where structural signals can be measured and compared over time:</p>
-            <ul>
-              <li>Geopolitics and statecraft</li>
-              <li>Technology systems and infrastructure</li>
-              <li>Economic structure and industrial policy</li>
-              <li>Institutional risk and regulatory shifts</li>
-            </ul>
+            <p style={{ marginBottom: "24px", fontWeight: 700, fontSize: "13px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#1a1a1a" }}>
+              Domains
+            </p>
+            <p style={{ marginBottom: "12px" }}>Coverage is intentionally limited to areas where structural signals can be measured and compared over time:</p>
+            {["Geopolitics and statecraft", "Technology systems and infrastructure", "Economic structure and industrial policy", "Institutional risk and regulatory shifts"].map((item, i) => (
+              <div key={i} style={{ display: "flex", gap: "12px", marginBottom: "8px" }}>
+                <span style={{ color: "#999", flexShrink: 0 }}>—</span>
+                <span>{item}</span>
+              </div>
+            ))}
 
-            <h2>Editorial Standard</h2>
-            <p>
-              Each brief should be readable in under ten minutes, with a clear thesis, supporting indicators, and an explicit
-              "what changes next" section. Over time, the archive becomes a signal library.
+            <p style={{ marginBottom: "24px", marginTop: "24px", fontWeight: 700, fontSize: "13px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#1a1a1a" }}>
+              Editorial Standard
+            </p>
+            <p style={{ marginBottom: "24px" }}>
+              Each brief is readable in under two minutes, with a clear signal, strategic implications, and an explicit
+              watch list. Over time, the archive becomes a signal library.
             </p>
 
-            <h2>Contact</h2>
-            <p>
-              For private briefings, partnerships, or questions about methodology, use the{" "}
-              <Link href="/contact" style={{ color: "var(--gold)" }}>contact page</Link>.
+            <p style={{ marginBottom: "24px", fontWeight: 700, fontSize: "13px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#1a1a1a" }}>
+              Contact
             </p>
-          </div>
-        </section>
+            <p>
+              For private briefings, partnerships, or methodology questions, use the{" "}
+              <Link href="/contact" style={{ color: "#1a1a1a", textDecoration: "underline" }}>contact page</Link>.
+            </p>
 
-        <section className="section container">
-          <div className="mini-links">
-            <Link href="/briefs">Briefs</Link>
-            <span className="sep">·</span>
-            <Link href="/about">About</Link>
-            <span className="sep">·</span>
-            <Link href="/method">Method</Link>
-            <span className="sep">·</span>
-            <Link href="/contact">Contact</Link>
           </div>
         </section>
       </main>

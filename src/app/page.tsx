@@ -20,7 +20,7 @@ export default function ComingSoonPage() {
     }}>
 
       {/* Shield mark — evenly inset inner shield */}
-      <div style={{ marginBottom: "32px" }}>
+      <div style={{ marginBottom: "12px" }}>
  <svg width="48" height="56" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M24 2L44 10V28C44 40 34 50 24 54C14 50 4 40 4 28V10L24 2Z"
               stroke="#D4AF37" strokeWidth="1.5" fill="none" />

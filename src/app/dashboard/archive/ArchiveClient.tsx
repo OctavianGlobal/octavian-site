@@ -174,7 +174,7 @@ export default function ArchiveClient({
               <p className="dash-subtitle">
                 {restricted
                   ? "Upgrade to access the archive"
-                  : `${count} signals${domain ? ` · ${domain}` : ""}${dateFrom || dateTo ? ` · ${dateFrom ?? "start"} → ${dateTo ?? "today"}` : ""}${totalPages > 1 ? ` · Page ${page + 1} of ${totalPages}` : ""}`
+                  : `${count} signals${domain ? ` · ${domain}` : ""}${dateFrom || dateTo ? ` · Detected ${dateFrom ?? "start"} → ${dateTo ?? "today"}` : ""}${totalPages > 1 ? ` · Page ${page + 1} of ${totalPages}` : ""}`
                 }
               </p>
             </div>

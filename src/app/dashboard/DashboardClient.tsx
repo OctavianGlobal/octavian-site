@@ -60,11 +60,12 @@ export default function DashboardClient({
   const [bulkCount, setBulkCount] = useState<number | null>(null);
   const [bulkRunning, setBulkRunning] = useState(false);
   const [bulkDone, setBulkDone] = useState<number | null>(null);
+  const [bulkRefreshKey, setBulkRefreshKey] = useState(0);
 
   const perms = TIER_PERMISSIONS[previewTier];
   const totalPages = Math.ceil(count / PAGE_SIZE);
 
-  // Preview count when threshold changes
+  // Preview count when threshold changes or after a bulk archive completes
   useEffect(() => {
     if (!perms.canEditAndPublish) return;
     const t = parseFloat(bulkThreshold);
@@ -74,7 +75,7 @@ export default function DashboardClient({
       .then(r => r.json())
       .then(d => setBulkCount(d.count ?? 0))
       .catch(() => setBulkCount(null));
-  }, [bulkThreshold, perms.canEditAndPublish]);
+  }, [bulkThreshold, perms.canEditAndPublish, bulkRefreshKey]);
 
   function pushParams(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -138,6 +139,8 @@ export default function DashboardClient({
       const data = await res.json();
       if (res.ok) {
         setBulkDone(data.archived_count ?? 0);
+        setBulkCount(null);
+        setBulkRefreshKey(k => k + 1);
         router.refresh();
       } else {
         alert('Bulk archive failed. Please try again.');

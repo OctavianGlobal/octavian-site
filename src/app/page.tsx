@@ -1,119 +1,110 @@
-import Link from "next/link";
-import Masthead from "@/components/Masthead";
-import Footer from "@/components/Footer";
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Octavian Global — Strategic Intelligence",
-  description: "Strategic intelligence briefs focused on pattern recognition and risk analysis.",
+  title: "Octavian Global",
+  description: "Strategic intelligence. Coming soon.",
 };
 
-const FEATURED = {
-  slug: "ai-infrastructure-power-shift",
-  title: "AI Infrastructure Power Shift",
-  published: "June 6, 2024",
-  domain: "Geopolitics",
-  confidence: "Medium",
-  lead: "Compute is consolidating into a small number of jurisdictions and hyperscale operators. That consolidation is becoming a strategic lever — comparable to energy chokepoints — with downstream impacts on policy, trade, and security.",
-};
-
-const RECENT = [
-  {
-    slug: "ai-infrastructure-power-shift",
-    title: "AI Infrastructure Power Shift",
-    published: "June 6, 2024",
-    domain: "Geopolitics",
-    desc: "Compute concentration is becoming a state-level strategic lever.",
-  },
-  {
-    slug: "structural-signals-ai-infrastructure",
-    title: "Structural Signals Behind Global AI Infrastructure Consolidation",
-    published: "June 13, 2024",
-    domain: "Technology Systems",
-    desc: "Indicators of sovereign compute blocs forming across policy, capital, and supply chains.",
-  },
-];
-
-export default function HomePage() {
+export default function ComingSoonPage() {
   return (
-    <>
-      <a className="skip-link" href="#main">Skip to content</a>
-      <Masthead />
+    <main style={{
+      minHeight: "100vh",
+      background: "#0a0a0a",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      position: "relative",
+      padding: "40px 24px",
+    }}>
 
-      <main id="main" className="page">
-        <section className="section container">
-          <div className="section-title">
-            <span className="rule" />
-            <span className="label">LATEST BRIEF</span>
-            <span className="rule" />
-          </div>
+      {/* Shield mark */}
+      <div style={{ marginBottom: "32px" }}>
+        <svg width="48" height="56" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M24 2L44 10V28C44 40 34 50 24 54C14 50 4 40 4 28V10L24 2Z"
+            stroke="#D4AF37"
+            strokeWidth="1.5"
+            fill="none"
+          />
+          <path
+            d="M24 12L36 17V28C36 35.5 30.5 42 24 44.5C17.5 42 12 35.5 12 28V17L24 12Z"
+            fill="#D4AF37"
+            fillOpacity="0.08"
+            stroke="#D4AF37"
+            strokeWidth="0.75"
+          />
+        </svg>
+      </div>
 
-          <article className="card featured">
-            <h2 className="featured-title">{FEATURED.title}</h2>
-            <div className="meta">
-              <span className="meta-item">Published: {FEATURED.published}</span>
-              <span className="meta-dot" />
-              <span className="meta-item">Domain: {FEATURED.domain}</span>
-              <span className="meta-dot" />
-              <span className="meta-item">Confidence: {FEATURED.confidence}</span>
-            </div>
-            <p className="lead">{FEATURED.lead}</p>
-            <div className="cta-row">
-              <Link className="btn" href={`/briefs/${FEATURED.slug}`}>
-                Read Brief <span className="arrow">→</span>
-              </Link>
-              <Link className="btn-light" href="/briefs">All Briefs</Link>
-            </div>
-          </article>
-        </section>
+      {/* Wordmark */}
+      <div style={{
+        fontFamily: "Cinzel, Georgia, serif",
+        fontSize: "clamp(18px, 4vw, 28px)",
+        letterSpacing: "0.28em",
+        color: "#D4AF37",
+        marginBottom: "8px",
+        textAlign: "center",
+      }}>
+        OCTAVIAN GLOBAL
+      </div>
 
-        <section className="section container">
-          <div className="section-title">
-            <span className="rule" />
-            <span className="label">RECENT BRIEFS</span>
-            <span className="rule" />
-          </div>
+      {/* Tagline */}
+      <div style={{
+        fontFamily: "Georgia, serif",
+        fontSize: "clamp(11px, 2vw, 13px)",
+        letterSpacing: "0.18em",
+        color: "rgba(255,255,255,0.3)",
+        textTransform: "uppercase",
+        marginBottom: "64px",
+        textAlign: "center",
+      }}>
+        Strategic Intelligence
+      </div>
 
-          <div className="brief-list" role="list">
-            {RECENT.map((brief) => (
-              <article key={brief.slug} className="brief-row" role="listitem">
-                <div className="brief-main">
-                  <h3 className="brief-title">
-                    <Link href={`/briefs/${brief.slug}`}>{brief.title}</Link>
-                  </h3>
-                  <div className="meta">
-                    <span className="meta-item">Published: {brief.published}</span>
-                    <span className="meta-dot" />
-                    <span className="meta-item">Domain: {brief.domain}</span>
-                  </div>
-                  <p className="brief-desc">{brief.desc}</p>
-                </div>
-                <div className="brief-action">
-                  <Link className="read" href={`/briefs/${brief.slug}`}>
-                    Read <span className="arrow">→</span>
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
+      {/* Divider */}
+      <div style={{
+        width: "1px",
+        height: "48px",
+        background: "linear-gradient(to bottom, transparent, rgba(212,175,55,0.4), transparent)",
+        marginBottom: "48px",
+      }} />
 
-        <section className="section container">
-          <div className="mini-links">
-            <Link href="/briefs">Briefs</Link>
-            <span className="sep">·</span>
-            <Link href="/categories">Categories</Link>
-            <span className="sep">·</span>
-            <Link href="/about">About</Link>
-            <span className="sep">·</span>
-            <Link href="/method">Method</Link>
-            <span className="sep">·</span>
-            <Link href="/contact">Contact</Link>
-          </div>
-        </section>
-      </main>
+      {/* Coming soon text */}
+      <div style={{
+        fontFamily: "Georgia, serif",
+        fontSize: "clamp(13px, 2vw, 15px)",
+        color: "rgba(255,255,255,0.4)",
+        letterSpacing: "0.12em",
+        textAlign: "center",
+        maxWidth: "360px",
+        lineHeight: "1.8",
+      }}>
+        A new intelligence platform is being prepared.<br />
+        Access by invitation only.
+      </div>
 
-      <Footer />
-    </>
+      {/* Hidden link — invisible dot, bottom right */}
+      <Link
+        href="/home"
+        style={{
+          position: "fixed",
+          bottom: "18px",
+          right: "22px",
+          color: "#0a0a0a",
+          background: "transparent",
+          fontSize: "13px",
+          textDecoration: "none",
+          userSelect: "none",
+          padding: "8px",
+        }}
+        aria-hidden="true"
+        tabIndex={-1}
+      >
+        ·
+      </Link>
+
+    </main>
   );
 }

@@ -34,7 +34,7 @@ export default function ContactPage() {
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>
-      <Masthead tagline="Contact" subtag="Private briefings and inquiries" />
+      <Masthead tagline="Contact" />
 
       <main id="main" className="page">
         <section className="section container">

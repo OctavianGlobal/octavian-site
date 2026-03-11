@@ -19,7 +19,7 @@ export default function ComingSoonPage() {
       padding: "40px 24px",
     }}>
 
-      {/* Shield mark — fatter line weights */}
+      {/* Shield mark — evenly inset inner shield */}
       <div style={{ marginBottom: "32px" }}>
         <svg width="52" height="60" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path
@@ -29,7 +29,7 @@ export default function ComingSoonPage() {
             fill="none"
           />
           <path
-            d="M24 12L36 17V28C36 35.5 30.5 42 24 44.5C17.5 42 12 35.5 12 28V17L24 12Z"
+            d="M24 8L38 15V28C38 37.5 32 45.5 24 48.5C16 45.5 10 37.5 10 28V15L24 8Z"
             fill="#D4AF37"
             fillOpacity="0.12"
             stroke="#D4AF37"
@@ -50,11 +50,11 @@ export default function ComingSoonPage() {
         OCTAVIAN GLOBAL
       </div>
 
-      {/* Tagline — full white */}
+      {/* Tagline — white, slightly more letter spacing */}
       <div style={{
-        fontFamily: "Georgia, serif",
-        fontSize: "clamp(12px, 2vw, 14px)",
-        letterSpacing: "0.18em",
+        fontFamily: "var(--font-jakarta), Georgia, sans-serif",
+        fontSize: "clamp(11px, 2vw, 13px)",
+        letterSpacing: "0.28em",
         color: "#ffffff",
         textTransform: "uppercase",
         marginBottom: "64px",
@@ -63,17 +63,17 @@ export default function ComingSoonPage() {
         Strategic Intelligence
       </div>
 
-      {/* Body text — white, proper case */}
+      {/* Body text — Plus Jakarta Sans, white, proper case */}
       <div style={{
-        fontFamily: "Georgia, serif",
+        fontFamily: "var(--font-jakarta), Georgia, sans-serif",
         fontSize: "clamp(13px, 2vw, 15px)",
         color: "#ffffff",
-        letterSpacing: "0.08em",
+        letterSpacing: "0.06em",
         textAlign: "center",
-      /* whiteSpace: "nowrap", */
-        lineHeight: "1.8",
+        lineHeight: "2",
       }}>
-        A new intelligence platform is being prepared. <br /> Access by invitation only.
+        A new intelligence platform is being prepared.<br />
+        Access by invitation only.
       </div>
 
       {/* Hidden link */}

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Cinzel, Inter } from "next/font/google";
+import { Cinzel, Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import NavWrapper from "@/components/NavWrapper";
 
@@ -13,6 +13,12 @@ const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
+  subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -32,7 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${cinzel.variable} ${inter.variable}`}>
+      <body className={`${cinzel.variable} ${inter.variable} ${plusJakarta.variable}`}>
         <NavWrapper />
         {children}
       </body>

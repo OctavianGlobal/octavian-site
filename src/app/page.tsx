@@ -44,7 +44,7 @@ export default function ComingSoonPage() {
         fontSize: "clamp(18px, 4vw, 28px)",
         letterSpacing: "0.28em",
         color: "#D4AF37",
-        marginBottom: "8px",
+        marginBottom: "10px",
         textAlign: "center",
       }}>
         OCTAVIAN GLOBAL
@@ -53,9 +53,9 @@ export default function ComingSoonPage() {
       {/* Tagline */}
       <div style={{
         fontFamily: "Georgia, serif",
-        fontSize: "clamp(11px, 2vw, 13px)",
+        fontSize: "clamp(12px, 2vw, 14px)",
         letterSpacing: "0.18em",
-        color: "rgba(255,255,255,0.3)",
+        color: "rgba(255,255,255,0.65)",
         textTransform: "uppercase",
         marginBottom: "64px",
         textAlign: "center",
@@ -63,41 +63,36 @@ export default function ComingSoonPage() {
         Strategic Intelligence
       </div>
 
-      {/* Divider */}
-      <div style={{
-        width: "1px",
-        height: "48px",
-        background: "linear-gradient(to bottom, transparent, rgba(212,175,55,0.4), transparent)",
-        marginBottom: "48px",
-      }} />
-
       {/* Coming soon text */}
       <div style={{
         fontFamily: "Georgia, serif",
         fontSize: "clamp(13px, 2vw, 15px)",
-        color: "rgba(255,255,255,0.4)",
-        letterSpacing: "0.12em",
+        color: "rgba(255,255,255,0.85)",
+        letterSpacing: "0.08em",
         textAlign: "center",
-        maxWidth: "360px",
+        whiteSpace: "nowrap",
         lineHeight: "1.8",
       }}>
-        A new intelligence platform is being prepared.<br />
-        Access by invitation only.
+        A new intelligence platform is being prepared. Access by invitation only.
       </div>
 
-      {/* Hidden link — invisible dot, bottom right */}
+      {/* Hidden link — bright enough to click, invisible against background */}
       <Link
         href="/home"
         style={{
           position: "fixed",
-          bottom: "18px",
-          right: "22px",
-          color: "#0a0a0a",
-          background: "transparent",
-          fontSize: "13px",
+          bottom: "24px",
+          right: "28px",
+          color: "#111111",
+          background: "#0a0a0a",
+          fontSize: "18px",
           textDecoration: "none",
           userSelect: "none",
-          padding: "8px",
+          padding: "10px",
+          lineHeight: 1,
+          display: "block",
+          width: "32px",
+          height: "32px",
         }}
         aria-hidden="true"
         tabIndex={-1}

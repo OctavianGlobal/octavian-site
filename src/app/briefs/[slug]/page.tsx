@@ -46,6 +46,21 @@ function parseBrief(md: string) {
   return sections;
 }
 
+function renderInline(text: string): React.ReactNode[] {
+  // Split on **bold** markers and render accordingly
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} style={{ fontWeight: 700, color: "#1a1a1a" }}>
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return <span key={i}>{part.replace(/\*(.*?)\*/g, "$1")}</span>;
+  });
+}
+
 export default async function BriefPage(
   { params }: { params: Promise<{ slug: string }> }
 ) {
@@ -89,42 +104,57 @@ export default async function BriefPage(
             fontSize: "12px",
             letterSpacing: "0.08em",
             color: "#999",
-            marginBottom: "16px",
+            marginBottom: "24px",
           }}>
             <Link href="/briefs" style={{ color: "#999", textDecoration: "none" }}>
               ← Briefs
             </Link>
           </div>
 
+          {/* Domain tag */}
+          {cluster.primary_domain && (
+            <div style={{
+              fontFamily: "var(--font-jakarta), sans-serif",
+              fontSize: "10px",
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "#D4AF37",
+              fontWeight: 700,
+              marginBottom: "12px",
+            }}>
+              {cluster.primary_domain}
+            </div>
+          )}
+
           {/* Title */}
           <h1 style={{
             fontFamily: "Cinzel, Georgia, serif",
-            fontSize: "clamp(22px, 3vw, 34px)",
-            letterSpacing: "0.02em",
+            fontSize: "clamp(22px, 3vw, 36px)",
+            letterSpacing: "0.01em",
             color: "#1a1a1a",
-            lineHeight: 1.25,
-            marginBottom: "16px",
+            lineHeight: 1.2,
+            marginBottom: "20px",
             fontWeight: 700,
           }}>
             {signal.published_title}
           </h1>
 
-          {/* Meta */}
-          <div className="meta" style={{ marginBottom: "32px" }}>
-            {signal.published_at && (
-              <span className="meta-item">
-                {new Date(signal.published_at).toLocaleDateString("en-US", {
-                  year: "numeric", month: "long", day: "numeric"
-                })}
-              </span>
-            )}
-            {cluster.primary_domain && (
-              <>
-                <span className="meta-dot" />
-                <span className="meta-item">{cluster.primary_domain}</span>
-              </>
-            )}
-          </div>
+          {/* Date */}
+          {signal.published_at && (
+            <div style={{
+              fontFamily: "var(--font-jakarta), sans-serif",
+              fontSize: "12px",
+              color: "#999",
+              letterSpacing: "0.06em",
+              marginBottom: "40px",
+              paddingBottom: "24px",
+              borderBottom: "1px solid #e8e8e8",
+            }}>
+              {new Date(signal.published_at).toLocaleDateString("en-US", {
+                year: "numeric", month: "long", day: "numeric"
+              })}
+            </div>
+          )}
 
           {/* Body */}
           <div style={{
@@ -134,42 +164,72 @@ export default async function BriefPage(
             color: "#2a2a2a",
           }}>
             {sections.map((section, i) => (
-              <div key={i} style={{ marginBottom: "28px" }}>
+              <div key={i} style={{ marginBottom: "32px" }}>
                 {section.heading && (
-                  <p style={{
+                  <h2 style={{
+                    fontFamily: "Cinzel, Georgia, serif",
                     fontWeight: 700,
-                    fontSize: "13px",
-                    letterSpacing: "0.14em",
+                    fontSize: "11px",
+                    letterSpacing: "0.18em",
                     textTransform: "uppercase",
                     color: "#1a1a1a",
-                    marginBottom: "10px",
+                    marginBottom: "12px",
+                    paddingBottom: "8px",
+                    borderBottom: "1px solid #e8e8e8",
                   }}>
                     {section.heading}
-                  </p>
+                  </h2>
                 )}
                 {section.lines
                   .filter(l => l.trim().length > 0)
                   .map((line, j) => {
-                    const clean = line
-                      .replace(/\*\*(.*?)\*\*/g, "$1")
-                      .replace(/\*(.*?)\*/g, "$1")
-                      .trim();
-                    const isBullet = clean.startsWith("- ") || clean.startsWith("• ");
+                    const trimmed = line.trim();
+                    const isBullet = trimmed.startsWith("- ") || trimmed.startsWith("• ");
+
                     if (isBullet) {
+                      const content = trimmed.replace(/^[-•]\s*/, "");
                       return (
-                        <div key={j} style={{ display: "flex", gap: "12px", marginBottom: "8px" }}>
-                          <span style={{ color: "#999", flexShrink: 0 }}>—</span>
-                          <span>{clean.replace(/^[-•]\s*/, "")}</span>
+                        <div key={j} style={{
+                          display: "flex",
+                          gap: "12px",
+                          marginBottom: "10px",
+                          alignItems: "flex-start",
+                        }}>
+                          <span style={{
+                            color: "#D4AF37",
+                            flexShrink: 0,
+                            marginTop: "2px",
+                            fontSize: "14px",
+                          }}>—</span>
+                          <span>{renderInline(content)}</span>
                         </div>
                       );
                     }
+
                     return (
-                      <p key={j} style={{ marginBottom: "12px" }}>{clean}</p>
+                      <p key={j} style={{ marginBottom: "14px" }}>
+                        {renderInline(trimmed)}
+                      </p>
                     );
                   })}
               </div>
             ))}
           </div>
+
+          {/* Footer rule */}
+<div style={{
+  marginTop: "48px",
+  paddingTop: "24px",
+  borderTop: "1px solid #e8e8e8",
+  fontFamily: "var(--font-jakarta), sans-serif",
+  fontSize: "11px",
+  letterSpacing: "0.10em",
+  color: "#bbb",
+  textTransform: "uppercase",
+  textAlign: "center",
+}}>
+  Octavian Global · Signal Intelligence
+</div>
 
         </section>
       </main>

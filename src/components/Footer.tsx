@@ -1,4 +1,5 @@
 import Link from "next/link";
+import OctavianWordmark from "@/components/OctavianWordmark";
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -6,7 +7,7 @@ export default function Footer() {
     <footer className="footer">
       <div className="container footer-inner">
 
-        {/* Nav links — top of footer, white */}
+        {/* Nav links */}
         <nav style={{
           display: "flex",
           gap: "10px",
@@ -16,10 +17,10 @@ export default function Footer() {
           marginBottom: "28px",
         }}>
           {[
-{ href: "/briefs", label: "Briefs" },
-{ href: "/about", label: "About" },
-{ href: "/method", label: "Method" },
-{ href: "/contact", label: "Contact" },
+            { href: "/briefs", label: "Briefs" },
+            { href: "/about", label: "About" },
+            { href: "/method", label: "Method" },
+            { href: "/contact", label: "Contact" },
           ].map((link, i, arr) => (
             <span key={link.href} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <Link href={link.href} style={{
@@ -39,7 +40,9 @@ export default function Footer() {
           ))}
         </nav>
 
-        <div className="footer-brand">OCTAVIAN GLOBAL</div>
+        <div className="footer-brand">
+          <OctavianWordmark size={18} color="#D4AF37" letterSpacing="0.28em" />
+        </div>
         <div className="footer-sub">Strategic Intelligence and Pattern Recognition</div>
         <div className="footer-fine">
           Copyright {year} Octavian Global ·{" "}

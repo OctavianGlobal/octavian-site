@@ -8,6 +8,7 @@ interface SourceItem {
   title: string | null;
   url: string | null;
   snippet: string | null;
+  source_name: string | null;
 }
 
 interface SignalReviewData {
@@ -411,7 +412,12 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                     </div>
                   )}
                   <div>
-                    Sources: <strong style={{ color: "var(--ink)" }}>{signal.item_count} item{signal.item_count !== 1 ? "s" : ""}</strong>
+                    Sources: <strong style={{ color: "var(--ink)" }}>
+  {signal.source_items?.length > 0
+    ? [...new Set(signal.source_items.map((s: SourceItem) => s.source_name).filter(Boolean))].join(", ")
+    : `${signal.item_count} item${signal.item_count !== 1 ? "s" : ""}`
+  }
+</strong>
                   </div>
                 </div>
 

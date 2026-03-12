@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase.client";
+import OctavianWordmark from "@/components/OctavianWordmark";
 
 export default function StickyNav() {
   const pathname = usePathname();
@@ -123,15 +124,7 @@ export default function StickyNav() {
               strokeWidth="0.75"
             />
           </svg>
-          <span style={{
-            fontFamily: "Cinzel, serif",
-            fontSize: "18px",
-            letterSpacing: "0.18em",
-            color: "#D4AF37",
-            whiteSpace: "nowrap",
-          }}>
-            OCTAVIAN GLOBAL
-          </span>
+          <OctavianWordmark size={18} color="#D4AF37" letterSpacing="0.18em" />
         </Link>
 
         <div style={{ flex: 1 }} />
@@ -290,7 +283,7 @@ function dropdownItemStyle(active: boolean, hovered?: boolean): React.CSSPropert
     textDecoration: "none",
     borderBottom: "1px solid rgba(212,175,55,0.08)",
     transition: "background 0.15s",
-background: hovered ? "rgba(212,175,55,0.18)" : "transparent",
+    background: hovered ? "rgba(212,175,55,0.18)" : "transparent",
     cursor: "pointer",
   };
 }

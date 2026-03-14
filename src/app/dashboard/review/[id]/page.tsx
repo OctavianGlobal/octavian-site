@@ -340,48 +340,58 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 />
               </div>
 
-              {/* ── Social teasers panel ── */}
-              {teasers && showTeasers && (
-                <div style={{ background: "#fafafa", border: "1px solid #e6e6e6", borderRadius: "8px", padding: "20px", marginBottom: "20px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-                    <div style={{ fontSize: "11px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#888", fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 600 }}>
-                      Social Teasers
-                    </div>
-                    <button onClick={() => setShowTeasers(false)} style={{ background: "none", border: "none", color: "#aaa", cursor: "pointer", fontSize: "12px" }}>Hide</button>
-                  </div>
-                  {[
-                    { key: "power" as const, label: "Power", color: "#e53935" },
-                    { key: "money" as const, label: "Money", color: "#43a047" },
-                    { key: "rules" as const, label: "Rules", color: "#1e88e5" },
-                  ].map(({ key, label, color }) => teasers[key] && (
-                    <div key={key} style={{ marginBottom: "14px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                        <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", color, fontFamily: "Cinzel, serif" }}>{label}</span>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(teasers[key] ?? "")}
-                          style={{ background: "none", border: "1px solid #d0d0d0", color: "#888", fontSize: "10px", padding: "2px 8px", borderRadius: "4px", cursor: "pointer", fontFamily: "var(--font-jakarta), sans-serif" }}
-                        >
-                          Copy
-                        </button>
-                      </div>
-                      <div style={{ fontSize: "12px", color: "#333", lineHeight: 1.6, fontFamily: "var(--font-jakarta), sans-serif", background: "#fff", border: "1px solid #e6e6e6", borderRadius: "6px", padding: "10px 12px" }}>
-                        {teasers[key]}
-                      </div>
-                    </div>
-                  ))}
-                  {validationQuery && (
-                    <div style={{ marginTop: "4px", paddingTop: "14px", borderTop: "1px solid #e6e6e6" }}>
-                      <div style={{ fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#888", fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 600, marginBottom: "6px" }}>
-                        Validation Query
-                      </div>
-                      <div style={{ fontSize: "12px", color: "#555", fontFamily: "monospace", background: "#fff", border: "1px solid #e6e6e6", borderRadius: "6px", padding: "8px 12px" }}>
-                        {validationQuery}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+             {/* ── Social teaser — single strongest domain ── */}
+{teasers && (() => {
+  const domainScores: [string, number][] = [
+    ["power", signal.power_score ?? 0],
+    ["money", signal.money_score ?? 0],
+    ["rules", signal.rules_score ?? 0],
+  ];
+  const best = domainScores.sort((a, b) => b[1] - a[1])[0];
+  const bestKey = best[0] as "power" | "money" | "rules";
+  const bestScore = best[1];
+  const bestTeaser = teasers[bestKey];
+  if (!bestTeaser || bestScore < 2.5) return null;
+  const domainColor: Record<string, string> = {
+    power: "#e53935", money: "#43a047", rules: "#1e88e5",
+  };
+  return (
+    <div style={{
+      background: "#fafafa", border: "1px solid #e6e6e6",
+      borderRadius: "6px", padding: "10px 14px", marginBottom: "16px",
+      display: "flex", alignItems: "flex-start",
+      justifyContent: "space-between", gap: "12px",
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <span style={{
+          fontSize: "9px", fontWeight: 700, letterSpacing: "0.14em",
+          color: domainColor[bestKey], fontFamily: "Cinzel, serif",
+          textTransform: "uppercase", marginRight: "8px",
+        }}>
+          {bestKey} teaser
+        </span>
+        <span style={{
+          fontSize: "12px", color: "#555",
+          fontFamily: "var(--font-jakarta), sans-serif", lineHeight: 1.5,
+        }}>
+          {bestTeaser.slice(0, 80)}{bestTeaser.length > 80 ? "…" : ""}
+        </span>
+      </div>
+      <button
+        onClick={() => navigator.clipboard.writeText(bestTeaser)}
+        style={{
+          background: "none", border: "1px solid #d0d0d0", color: "#888",
+          fontSize: "10px", padding: "3px 10px", borderRadius: "4px",
+          cursor: "pointer", fontFamily: "var(--font-jakarta), sans-serif",
+          flexShrink: 0, whiteSpace: "nowrap",
+        }}
+      >
+        Copy →
+      </button>
+    </div>
+  );
+})()}
+</div>
 
             {/* ── Right: action buttons + intelligence panel ── */}
             <div style={{ position: "sticky", top: "24px" }}>

@@ -202,9 +202,17 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     ? Math.round(signal.signal_score_raw * 100)
     : null;
 
-  const domains: string[] = signal.domains_jsonb?.length
-    ? signal.domains_jsonb
-    : signal.primary_domain ? [signal.primary_domain] : [];
+const rawDomains = (() => {
+  if (!signal.domains_jsonb) return [];
+  if (Array.isArray(signal.domains_jsonb)) return signal.domains_jsonb;
+  if (typeof signal.domains_jsonb === "string") {
+    try { return JSON.parse(signal.domains_jsonb); } catch { return []; }
+  }
+  return [];
+})();
+const domains: string[] = Array.isArray(rawDomains) && rawDomains.length
+  ? rawDomains
+  : signal.primary_domain ? [signal.primary_domain] : [];
 
   const readiness = getOverallReadiness(scorePct);
   const readinessStyle = STOPLIGHT[readiness.color];

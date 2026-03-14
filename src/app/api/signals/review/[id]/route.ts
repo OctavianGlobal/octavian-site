@@ -145,7 +145,15 @@ export async function GET(
       published_body_md: s.published_body_md ?? null,
       cluster_summary: cluster.cluster_summary ?? null,
       primary_domain: cluster.primary_domain ?? null,
-      domains_jsonb: cluster.domains_jsonb ?? [],
+domains_jsonb: (() => {
+  const raw = cluster.domains_jsonb;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw); } catch { return []; }
+  }
+  return [];
+})(),
       entity_names: entityNames,
       tag_names: tagNames,
       item_count: itemCount ?? 0,

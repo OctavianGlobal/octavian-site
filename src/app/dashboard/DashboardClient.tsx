@@ -316,8 +316,20 @@ export default function DashboardClient({
                     <div className="meta" style={{ margin: "4px 0 8px" }}>
                       <span className="meta-item">{sig.created_at?.slice(0, 10) ?? "—"}</span>
                       <span className="meta-dot" />
-                      {(sig.domains_jsonb?.length ? sig.domains_jsonb : [sig.primary_domain ?? DOMAIN_FALLBACK]).map((d) => (
-                        <span key={d} className={`tag-pill ${DOMAIN_COLORS[d] ?? ""}`}>{d}</span>
+
+                      {((() => {
+  if (!sig.domains_jsonb) return [sig.primary_domain ?? DOMAIN_FALLBACK];
+  if (Array.isArray(sig.domains_jsonb)) return sig.domains_jsonb.length ? sig.domains_jsonb : [sig.primary_domain ?? DOMAIN_FALLBACK];
+  if (typeof sig.domains_jsonb === "string") {
+    try {
+      const parsed = JSON.parse(sig.domains_jsonb);
+      return Array.isArray(parsed) && parsed.length ? parsed : [sig.primary_domain ?? DOMAIN_FALLBACK];
+    } catch { return [sig.primary_domain ?? DOMAIN_FALLBACK]; }
+  }
+  return [sig.primary_domain ?? DOMAIN_FALLBACK];
+})()).map((d) => (
+                      
+                      <span key={d} className={`tag-pill ${DOMAIN_COLORS[d] ?? ""}`}>{d}</span>
                       ))}
                       {perms.canViewConfidence && sig.confidence !== null && (
                         <span className="meta-item" style={{ color: "var(--muted)" }}>AI conf: {Math.round(sig.confidence * 100)}%</span>

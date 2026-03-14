@@ -165,7 +165,7 @@ export default function ArchiveClient({
             marginBottom: "24px", paddingBottom: "16px", borderBottom: "1px solid var(--line)",
           }}>
             <div>
-              <h1 className="dash-title">Archive</h1>
+              <h1 className="dash-title">Archived Signals</h1>
               <p className="dash-subtitle">
                 {restricted
                   ? "Upgrade to access the archive"

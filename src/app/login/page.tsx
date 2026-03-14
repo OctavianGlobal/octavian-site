@@ -58,25 +58,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#0a0a0a",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "32px",
-    }}>
-      <div style={{
-        background: "#ffffff",
-        borderRadius: "14px",
-        padding: "48px 40px",
-        width: "100%",
-        maxWidth: "420px",
-        boxShadow: "0 24px 64px rgba(0,0,0,0.40)",
-      }}>
+    <div className="auth-shell">
+      <div className="auth-card">
 
         {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: "24px" }}>
+        <div className="auth-logo" style={{ display: "flex", justifyContent: "center" }} >
           <svg width="48" height="56" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M24 2L44 10V28C44 40 34 50 24 54C14 50 4 40 4 28V10L24 2Z"
@@ -95,47 +81,19 @@ export default function LoginPage() {
         </div>
 
         {/* Wordmark */}
-        <h1 style={{
-          fontFamily: "Cinzel, serif",
-          fontSize: "20px",
-          letterSpacing: "0.18em",
-          color: "#1a1a1a",
-          textAlign: "center",
-          margin: "0 0 6px",
-          fontWeight: 600,
-        }}>
-          OCTAVIAN GLOBAL
-        </h1>
-        <p style={{
-          fontFamily: "var(--font-jakarta), sans-serif",
-          fontSize: "13px",
-          color: "#888",
-          textAlign: "center",
-          margin: "0 0 32px",
-          letterSpacing: "0.04em",
-        }}>
+        <h1 className="auth-title">OCTAVIAN GLOBAL</h1>
+        <p className="auth-sub">
           {mode === "login" ? "Sign in to your account" : "Create a free account"}
         </p>
 
         {status === "error" && errorMsg && (
-          <div style={{
-            background: "#fff5f5",
-            border: "1px solid #fecaca",
-            borderRadius: "8px",
-            padding: "10px 14px",
-            color: "#c0392b",
-            fontSize: "13px",
-            marginBottom: "16px",
-            fontFamily: "var(--font-jakarta), sans-serif",
-          }}>
-            {errorMsg}
-          </div>
+          <div className="auth-error">{errorMsg}</div>
         )}
 
         <form onSubmit={handleSubmit}>
           {mode === "signup" && (
             <div className="field">
-              <label htmlFor="name" style={{ color: "#333" }}>Name</label>
+              <label htmlFor="name">Name</label>
               <input
                 id="name"
                 name="name"
@@ -143,13 +101,12 @@ export default function LoginPage() {
                 autoComplete="name"
                 required
                 placeholder="Your name"
-                style={{ background: "#fafafa", borderColor: "#e0e0e0", color: "#1a1a1a" }}
               />
             </div>
           )}
 
           <div className="field">
-            <label htmlFor="email" style={{ color: "#333" }}>Email</label>
+            <label htmlFor="email">Email</label>
             <input
               id="email"
               name="email"
@@ -157,12 +114,11 @@ export default function LoginPage() {
               autoComplete="email"
               required
               placeholder="you@example.com"
-              style={{ background: "#fafafa", borderColor: "#e0e0e0", color: "#1a1a1a" }}
             />
           </div>
 
           <div className="field">
-            <label htmlFor="password" style={{ color: "#333" }}>Password</label>
+            <label htmlFor="password">Password</label>
             <input
               id="password"
               name="password"
@@ -171,27 +127,23 @@ export default function LoginPage() {
               required
               placeholder="••••••••"
               minLength={mode === "signup" ? 8 : undefined}
-              style={{ background: "#fafafa", borderColor: "#e0e0e0", color: "#1a1a1a" }}
             />
           </div>
 
           <button
             type="submit"
             disabled={status === "loading"}
+            className="btn"
             style={{
               width: "100%",
               padding: "12px",
               marginTop: "8px",
-              background: "#1a1a1a",
-              color: "#D4AF37",
-              border: "none",
-              borderRadius: "8px",
               fontFamily: "Cinzel, serif",
               fontSize: "13px",
               letterSpacing: "0.12em",
               cursor: status === "loading" ? "not-allowed" : "pointer",
               opacity: status === "loading" ? 0.7 : 1,
-              transition: "opacity 0.15s",
+              justifyContent: "center",
             }}
           >
             {status === "loading"

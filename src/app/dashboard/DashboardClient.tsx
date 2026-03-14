@@ -65,7 +65,6 @@ export default function DashboardClient({
   const perms = TIER_PERMISSIONS[previewTier];
   const totalPages = Math.ceil(count / PAGE_SIZE);
 
-  // Preview count when threshold changes or after a bulk archive completes
   useEffect(() => {
     if (!perms.canEditAndPublish) return;
     const t = parseFloat(bulkThreshold);
@@ -188,18 +187,20 @@ export default function DashboardClient({
             Analyst Dashboard
           </span>
           <div style={{ flex: 1 }} />
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "11px", letterSpacing: "0.08em" }}>PREVIEW AS:</span>
-            <select
-              value={previewTier}
-              onChange={(e) => setPreviewTier(e.target.value as SubscriptionTier)}
-              style={{ background: "#111", border: "1px solid #333", color: "var(--gold)", fontSize: "11px", padding: "4px 8px", cursor: "pointer" }}
-            >
-              {TIERS.map((t) => (
-                <option key={t} value={t}>{t.replace(/_/g, " ").toUpperCase()}</option>
-              ))}
-            </select>
-          </div>
+          {isEditor && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "11px", letterSpacing: "0.08em" }}>PREVIEW AS:</span>
+              <select
+                value={previewTier}
+                onChange={(e) => setPreviewTier(e.target.value as SubscriptionTier)}
+                style={{ background: "#111", border: "1px solid #333", color: "var(--gold)", fontSize: "11px", padding: "4px 8px", cursor: "pointer" }}
+              >
+                {TIERS.map((t) => (
+                  <option key={t} value={t}>{t.replace(/_/g, " ").toUpperCase()}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 

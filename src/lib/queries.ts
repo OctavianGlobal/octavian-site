@@ -448,8 +448,8 @@ export async function getArchivedSignals(opts: {
         )
       )
     `, { count: 'exact' })
-    .in('status', ['archived', 'published'])
-    .order('published_at', { ascending: false })
+    .eq('status', 'archived')
+    .order('created_at', { ascending: false })
     .limit(limit)
 
   if (clusterIdFilter) {
@@ -461,10 +461,10 @@ export async function getArchivedSignals(opts: {
   }
 
   if (opts.dateFrom) {
-    query = query.gte('published_at', opts.dateFrom)
+    query = query.gte('created_at', opts.dateFrom)
   }
   if (opts.dateTo) {
-    query = query.lte('published_at', opts.dateTo)
+    query = query.lte('created_at', opts.dateTo)
   }
 
   const { data, count, error } = await query

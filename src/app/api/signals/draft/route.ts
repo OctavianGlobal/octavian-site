@@ -1,6 +1,6 @@
 // ============================================================
 // src/app/api/signals/draft/route.ts
-// Octavian Global — AI brief drafting via Claude
+// Octavian Global — AI brief drafting via Claude Haiku
 // Returns: brief body + 3 social teasers + validation query
 // ============================================================
 
@@ -61,11 +61,11 @@ SOCIAL TEASER RULES (for each of power/money/rules):
 - No hashtags
 
 VALIDATION QUERY RULES:
-- A precise search string (3-6 words + quotes where needed) that would confirm this signal's prediction came true
+- A precise search string (3-6 words) that would confirm this signal's prediction came true
 - Example: "EU defense procurement treaty signed" or "Fed rate cut announcement"
 - Must be specific enough to distinguish confirmation from noise
 
-Return ONLY the JSON object. No preamble, no markdown fences.`
+Return ONLY the JSON object. No preamble, no markdown fences, no explanation.`
 
 
 export async function POST(request: NextRequest) {
@@ -185,7 +185,7 @@ ${sourceNames.length ? `- Sources: ${sourceNames.join(', ')}` : ''}
 Return the JSON object now.`
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1500,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userPrompt }],
@@ -196,10 +196,13 @@ Return the JSON object now.`
     // Parse JSON response
     let parsed: any
     try {
-      const clean = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+      const clean = rawText
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/```\s*$/i, '')
+        .trim()
       parsed = JSON.parse(clean)
     } catch {
-      // Fallback — if JSON parsing fails, treat entire response as brief
       console.error('[draft] JSON parse failed, falling back to raw text')
       return NextResponse.json({ draft: rawText, teasers: null, validation_query: null })
     }
@@ -214,14 +217,13 @@ Return the JSON object now.`
         .filter(metric => teasers[metric])
         .map(metric => ({
           brief_id: signal_id,
-          content: teasers[metric],
+          content:  teasers[metric],
           platform: 'pending',
-          metric: metric.toUpperCase(),
-          status: 'draft',
+          metric:   metric.toUpperCase(),
+          status:   'draft',
         }))
 
       if (teaserRows.length > 0) {
-        // Delete existing draft teasers for this signal first
         await supabase
           .from('social_posts')
           .delete()

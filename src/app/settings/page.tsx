@@ -2,6 +2,7 @@ import { requireAuth, getProfile } from "@/lib/auth";
 import Masthead from "@/components/Masthead";
 import Footer from "@/components/Footer";
 import SettingsClient from "./SettingsClient";
+import PreviewTierSelect from "@/components/PreviewTierSelect";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -13,12 +14,12 @@ export const dynamic = "force-dynamic";
 
 function formatTier(tier: string) {
   switch (tier) {
-    case "free": return "Free";
-    case "signal": return "Signal";
+    case "free":        return "Free";
+    case "signal":      return "Signal";
     case "signal_plus": return "Signal Plus";
-    case "analyst": return "Analyst";
-    case "editor": return "Editor";
-    default: return tier;
+    case "analyst":     return "Analyst";
+    case "editor":      return "Editor";
+    default:            return tier;
   }
 }
 
@@ -26,6 +27,8 @@ export default async function SettingsPage() {
   await requireAuth();
   const profile = await getProfile();
   if (!profile) return null;
+
+  const isEditorOrAdmin = profile.is_editor || profile.is_admin;
 
   return (
     <>
@@ -47,20 +50,12 @@ export default async function SettingsPage() {
             Account Settings
           </h1>
 
-          {/* Account info */}
-          <div style={{
-            borderBottom: "1px solid rgba(0,0,0,0.1)",
-            paddingBottom: "32px",
-            marginBottom: "32px",
-          }}>
+          {/* ── Account info ── */}
+          <div style={{ borderBottom: "1px solid rgba(0,0,0,0.1)", paddingBottom: "32px", marginBottom: "32px" }}>
             <p style={{
-              fontFamily: "var(--font-jakarta), sans-serif",
-              fontSize: "13px",
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: "#1a1a1a",
-              fontWeight: 700,
-              marginBottom: "20px",
+              fontFamily: "var(--font-jakarta), sans-serif", fontSize: "13px",
+              letterSpacing: "0.14em", textTransform: "uppercase",
+              color: "#1a1a1a", fontWeight: 700, marginBottom: "20px",
             }}>
               Account
             </p>
@@ -68,24 +63,14 @@ export default async function SettingsPage() {
             <div style={{ display: "grid", gap: "14px", fontFamily: "var(--font-jakarta), sans-serif" }}>
               <div style={{ display: "flex", gap: "24px", alignItems: "baseline" }}>
                 <span style={{ fontSize: "13px", color: "#888", width: "120px", flexShrink: 0 }}>Tier</span>
-                <span style={{
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  color: "#1a1a1a",
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#1a1a1a", letterSpacing: "0.06em", textTransform: "uppercase" }}>
                   {formatTier(profile.subscription_tier ?? "free")}
                 </span>
               </div>
 
               <div style={{ display: "flex", gap: "24px", alignItems: "baseline" }}>
                 <span style={{ fontSize: "13px", color: "#888", width: "120px", flexShrink: 0 }}>Status</span>
-                <span style={{
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  color: profile.subscription_status === "active" ? "#1a6e3c" : "#888",
-                }}>
+                <span style={{ fontSize: "13px", fontWeight: 600, color: profile.subscription_status === "active" ? "#1a6e3c" : "#888" }}>
                   {profile.subscription_status === "active" ? "Active" : "Inactive"}
                 </span>
               </div>
@@ -94,16 +79,34 @@ export default async function SettingsPage() {
                 <span style={{ fontSize: "13px", color: "#888", width: "120px", flexShrink: 0 }}>Member Since</span>
                 <span style={{ fontSize: "13px", color: "#1a1a1a" }}>
                   {profile.created_at
-                    ? new Date(profile.created_at).toLocaleDateString("en-US", {
-                        month: "long", day: "numeric", year: "numeric"
-                      })
+                    ? new Date(profile.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
                     : "—"}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Display name — client component for interactivity */}
+          {/* ── Editor tools — Preview As ── */}
+          {isEditorOrAdmin && (
+            <div style={{ borderBottom: "1px solid rgba(0,0,0,0.1)", paddingBottom: "32px", marginBottom: "32px" }}>
+              <p style={{
+                fontFamily: "var(--font-jakarta), sans-serif", fontSize: "13px",
+                letterSpacing: "0.14em", textTransform: "uppercase",
+                color: "#1a1a1a", fontWeight: 700, marginBottom: "20px",
+              }}>
+                Editor Tools
+              </p>
+
+              <div style={{ display: "flex", gap: "24px", alignItems: "flex-start", fontFamily: "var(--font-jakarta), sans-serif" }}>
+                <span style={{ fontSize: "13px", color: "#888", width: "120px", flexShrink: 0, paddingTop: "10px" }}>
+                  Preview As
+                </span>
+                <PreviewTierSelect />
+              </div>
+            </div>
+          )}
+
+          {/* ── Display name ── */}
           <SettingsClient displayName={profile.display_name ?? ""} />
 
         </section>

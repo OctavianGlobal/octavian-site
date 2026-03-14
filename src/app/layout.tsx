@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Cinzel, Inter, Plus_Jakarta_Sans } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import NavWrapper from "@/components/NavWrapper";
 
@@ -39,6 +40,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${cinzel.variable} ${inter.variable} ${plusJakarta.variable}`}>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-C2T7PNHK0N"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-C2T7PNHK0N');
+          `}
+        </Script>
         <NavWrapper />
         {children}
       </body>

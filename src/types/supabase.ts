@@ -258,6 +258,9 @@ export interface DashboardSignal {
   // Resolved at query time (tier-gated)
   score: number | null
   confidence: number | null
+  // To display in signal queue cards
+  primary_snippet: string | null
+  primary_source_name: string | null
 }
 
 // ── Public-facing signal (published briefs) ───────────────────────────────────

@@ -80,7 +80,6 @@ export async function getDashboardData(opts: {
       query = query.range(opts.offset, opts.offset + limit - 1)
     }
   } else {
-    // score sort — fetch all, sort in memory
     query = query.order('created_at', { ascending: false }).limit(500)
   }
 
@@ -125,8 +124,73 @@ export async function getDashboardData(opts: {
       ai_confidence: rawConfidence,
       score: perms.canViewSignalScore ? rawScore : null,
       confidence: perms.canViewConfidence ? rawConfidence : null,
+      primary_snippet: null,
+      primary_source_name: null,
     }
   })
+
+  // ── Step 3b: fetch top snippet + source name per cluster ──
+  const clusterIds = mapped.map(m => m.cluster_id).filter(Boolean) as string[]
+  if (clusterIds.length > 0) {
+    try {
+      const { data: ciRows } = await supabase
+        .from('cluster_items')
+        .select('cluster_id, item_id')
+        .in('cluster_id', clusterIds)
+
+      // One item per cluster — take first
+      const clusterItemMap: Record<string, string> = {}
+      for (const row of (ciRows ?? []) as any[]) {
+        if (!clusterItemMap[row.cluster_id]) {
+          clusterItemMap[row.cluster_id] = row.item_id
+        }
+      }
+
+      const itemIds = Object.values(clusterItemMap)
+      if (itemIds.length > 0) {
+        const { data: itemRows } = await supabase
+          .from('items')
+          .select('id, snippet, source_id')
+          .in('id', itemIds)
+
+        const sourceIds = [...new Set(
+          (itemRows ?? []).map((i: any) => i.source_id).filter(Boolean)
+        )]
+
+        let sourceNameMap: Record<string, string> = {}
+        if (sourceIds.length > 0) {
+          const { data: sourceRows } = await supabase
+            .from('sources')
+            .select('id, name')
+            .in('id', sourceIds)
+          sourceNameMap = Object.fromEntries(
+            (sourceRows ?? []).map((src: any) => [src.id, src.name])
+          )
+        }
+
+        const itemMap: Record<string, { snippet: string | null; source_name: string | null }> = {}
+        for (const item of (itemRows ?? []) as any[]) {
+          itemMap[item.id] = {
+            snippet: item.snippet ?? null,
+            source_name: item.source_id ? (sourceNameMap[item.source_id] ?? null) : null,
+          }
+        }
+
+        // Attach to mapped signals
+        mapped = mapped.map(m => {
+          const itemId = m.cluster_id ? clusterItemMap[m.cluster_id] : null
+          const itemData = itemId ? itemMap[itemId] : null
+          return {
+            ...m,
+            primary_snippet: itemData?.snippet ?? null,
+            primary_source_name: itemData?.source_name ?? null,
+          }
+        })
+      }
+    } catch (e) {
+      console.error('[getDashboardData] snippet fetch error', e)
+    }
+  }
 
   // ── Step 4: sort and paginate for score sort ──
   let totalCount = count ?? 0

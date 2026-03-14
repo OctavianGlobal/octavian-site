@@ -32,7 +32,8 @@ export async function POST(request: NextRequest) {
     const { data: scoreRows, error: scoreError } = await supabase
       .from('cluster_scores')
       .select('cluster_id, signal_score_raw')
-      .lt('signal_score_raw', threshold)
+        .or(`signal_score_raw.lt.${threshold},signal_score_raw.is.null`)
+
 
     if (scoreError) {
       return NextResponse.json({ error: 'Score query failed' }, { status: 500 })
@@ -100,7 +101,8 @@ export async function GET(request: NextRequest) {
     const { data: scoreRows } = await supabase
       .from('cluster_scores')
       .select('cluster_id')
-      .lt('signal_score_raw', threshold)
+      .or(`signal_score_raw.lt.${threshold},signal_score_raw.is.null`)
+
 
     const clusterIds = (scoreRows ?? []).map((r: any) => r.cluster_id)
 

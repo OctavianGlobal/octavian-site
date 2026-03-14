@@ -15,7 +15,6 @@ const DOMAIN_COLORS: Record<string, string> = {
 const ALL_DOMAINS: SignalDomain[] = ["POWER", "MONEY", "RULES", "ENVIRONMENT", "TECHNOLOGY"];
 const DOMAIN_FALLBACK: SignalDomain = "POWER";
 const PAGE_SIZE = 50;
-const QUICK_ARCHIVE_THRESHOLD = 0.50;
 
 const TIERS: SubscriptionTier[] = ["free", "signal", "signal_plus", "analyst", "editor"];
 
@@ -122,6 +121,18 @@ export default function DashboardClient({
       } else { alert('Bulk archive failed. Please try again.'); }
     } catch { alert('Bulk archive failed. Please try again.'); }
     finally { setBulkRunning(false); }
+  }
+
+  function parseDomains(sig: DashboardSignal): string[] {
+    if (!sig.domains_jsonb) return [sig.primary_domain ?? DOMAIN_FALLBACK];
+    if (Array.isArray(sig.domains_jsonb)) return sig.domains_jsonb.length ? sig.domains_jsonb : [sig.primary_domain ?? DOMAIN_FALLBACK];
+    if (typeof sig.domains_jsonb === "string") {
+      try {
+        const parsed = JSON.parse(sig.domains_jsonb);
+        return Array.isArray(parsed) && parsed.length ? parsed : [sig.primary_domain ?? DOMAIN_FALLBACK];
+      } catch { return [sig.primary_domain ?? DOMAIN_FALLBACK]; }
+    }
+    return [sig.primary_domain ?? DOMAIN_FALLBACK];
   }
 
   const sortArrow = dir === 'desc' ? '▼' : '▲';
@@ -248,7 +259,7 @@ export default function DashboardClient({
                 Archive all candidates scoring below
               </span>
               <input
-                type="number" min="1" max="99" value={bulkThreshold}
+                type="number" min="1" max="100" value={bulkThreshold}
                 onChange={(e) => setBulkThreshold(e.target.value)}
                 style={{ width: "64px", padding: "5px 8px", border: "1px solid #d0d0d0", borderRadius: "6px", fontSize: "13px", fontFamily: "var(--font-jakarta), sans-serif", color: "#1a1a1a", background: "#fff", textAlign: "center" }}
               />
@@ -307,7 +318,6 @@ export default function DashboardClient({
           ) : (
             signals.map((sig) => {
               const scoreDisplay = perms.canViewSignalScore && sig.score !== null ? Math.round(sig.score * 100) : null;
-              const showQuickArchive = isEditor && sig.signal_score_raw !== null && sig.signal_score_raw < QUICK_ARCHIVE_THRESHOLD;
 
               return (
                 <div key={sig.id} className="queue-row" style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
@@ -316,20 +326,8 @@ export default function DashboardClient({
                     <div className="meta" style={{ margin: "4px 0 8px" }}>
                       <span className="meta-item">{sig.created_at?.slice(0, 10) ?? "—"}</span>
                       <span className="meta-dot" />
-
-                      {((() => {
-  if (!sig.domains_jsonb) return [sig.primary_domain ?? DOMAIN_FALLBACK];
-  if (Array.isArray(sig.domains_jsonb)) return sig.domains_jsonb.length ? sig.domains_jsonb : [sig.primary_domain ?? DOMAIN_FALLBACK];
-  if (typeof sig.domains_jsonb === "string") {
-    try {
-      const parsed = JSON.parse(sig.domains_jsonb);
-      return Array.isArray(parsed) && parsed.length ? parsed : [sig.primary_domain ?? DOMAIN_FALLBACK];
-    } catch { return [sig.primary_domain ?? DOMAIN_FALLBACK]; }
-  }
-  return [sig.primary_domain ?? DOMAIN_FALLBACK];
-})()).map((d) => (
-                      
-                      <span key={d} className={`tag-pill ${DOMAIN_COLORS[d] ?? ""}`}>{d}</span>
+                      {parseDomains(sig).map((d) => (
+                        <span key={d} className={`tag-pill ${DOMAIN_COLORS[d] ?? ""}`}>{d}</span>
                       ))}
                       {perms.canViewConfidence && sig.confidence !== null && (
                         <span className="meta-item" style={{ color: "var(--muted)" }}>AI conf: {Math.round(sig.confidence * 100)}%</span>
@@ -338,6 +336,29 @@ export default function DashboardClient({
 
                     {expanded === sig.id && perms.canViewDomainScores && (
                       <div style={{ marginTop: "8px" }}>
+
+                        {/* ── Snippet ── */}
+                        {sig.primary_snippet && (
+                          <p style={{
+                            fontSize: "12px", color: "#444", lineHeight: 1.6,
+                            margin: "0 0 10px", fontFamily: "var(--font-jakarta), sans-serif",
+                          }}>
+                            {sig.primary_snippet.slice(0, 220)}{sig.primary_snippet.length > 220 ? "…" : ""}
+                          </p>
+                        )}
+
+                        {/* ── Primary source ── */}
+                        {sig.primary_source_name && (
+                          <div style={{
+                            fontSize: "11px", color: "var(--muted)", marginBottom: "10px",
+                            letterSpacing: "0.06em", textTransform: "uppercase",
+                            fontFamily: "var(--font-jakarta), sans-serif",
+                          }}>
+                            Source: <strong style={{ color: "var(--ink)" }}>{sig.primary_source_name}</strong>
+                          </div>
+                        )}
+
+                        {/* ── Domain bars ── */}
                         {[
                           { label: "Power", value: sig.power_score },
                           { label: "Money", value: sig.money_score },
@@ -351,7 +372,6 @@ export default function DashboardClient({
                             <span className="domain-bar-value">{value !== null ? value.toFixed(1) : "—"}</span>
                           </div>
                         ))}
-                        <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "8px" }}>{sig.cluster_summary}</div>
                       </div>
                     )}
 
@@ -384,15 +404,13 @@ export default function DashboardClient({
                         <Link href={`/dashboard/review/${sig.id}`} className="btn-light" style={{ fontSize: "12px", padding: "8px 12px", display: "inline-block", textAlign: "center" }}>
                           Edit & Publish
                         </Link>
-                        {showQuickArchive && (
-                          <button
-                            onClick={() => handleQuickArchive(sig.id)}
-                            disabled={archiving === sig.id}
-                            style={{ padding: "6px 12px", fontSize: "12px", fontFamily: "inherit", background: "#ffffff", color: archiving === sig.id ? "#aaa" : "#000000", border: "1px solid #d0d0d0", borderRadius: "10px", cursor: archiving === sig.id ? "default" : "pointer", fontWeight: 600, letterSpacing: "0.02em", transition: "border-color 0.15s" }}
-                          >
-                            {archiving === sig.id ? "Archiving…" : "↓ Archive"}
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleQuickArchive(sig.id)}
+                          disabled={archiving === sig.id}
+                          style={{ padding: "6px 12px", fontSize: "12px", fontFamily: "inherit", background: "#ffffff", color: archiving === sig.id ? "#aaa" : "#000000", border: "1px solid #d0d0d0", borderRadius: "10px", cursor: archiving === sig.id ? "default" : "pointer", fontWeight: 600, letterSpacing: "0.02em", transition: "border-color 0.15s" }}
+                        >
+                          {archiving === sig.id ? "Archiving…" : "↓ Archive"}
+                        </button>
                       </div>
                     )}
                   </div>

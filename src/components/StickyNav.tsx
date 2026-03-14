@@ -11,6 +11,9 @@ export default function StickyNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isEditor, setIsEditor] = useState(false);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
@@ -45,13 +48,22 @@ export default function StickyNav() {
 
       const { data } = await supabase
         .from("profiles")
-        .select("display_name, email")
+        .select("display_name, email, is_admin, is_editor")
         .eq("id", user.id)
         .single();
 
-      const profile = data as { display_name: string | null; email: string | null } | null;
+      const profile = data as {
+        display_name: string | null;
+        email: string | null;
+        is_admin: boolean | null;
+        is_editor: boolean | null;
+      } | null;
+
       const name = profile?.display_name || user.email?.split("@")[0] || "U";
       setDisplayName(name);
+      setUserEmail(user.email ?? null);
+      setIsAdmin(profile?.is_admin ?? false);
+      setIsEditor(profile?.is_editor ?? false);
       setLoadingAuth(false);
     }
 
@@ -166,13 +178,14 @@ export default function StickyNav() {
               right: 0,
               background: "#0a0a0a",
               border: "1px solid rgba(212,175,55,0.2)",
-              minWidth: "180px",
+              minWidth: "200px",
               zIndex: 200,
             }}>
               {!loadingAuth && (
                 <>
                   {displayName ? (
                     <>
+                      {/* User identity */}
                       <div style={{
                         display: "flex",
                         alignItems: "center",
@@ -196,94 +209,141 @@ export default function StickyNav() {
                         }}>
                           {initial}
                         </div>
-                        <span style={{
-                          fontFamily: "var(--font-jakarta), sans-serif",
-                          fontSize: "14px",
-                          color: "rgba(255,255,255,0.8)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}>
-                          {displayName}
-                        </span>
+                        <div style={{ overflow: "hidden" }}>
+                          <div style={{
+                            fontFamily: "var(--font-jakarta), sans-serif",
+                            fontSize: "13px",
+                            color: "rgba(255,255,255,0.8)",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}>
+                            {displayName}
+                          </div>
+                          {userEmail && (
+                            <div style={{
+                              fontFamily: "var(--font-jakarta), sans-serif",
+                              fontSize: "11px",
+                              color: "rgba(255,255,255,0.35)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}>
+                              {userEmail}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
-                      <Link
-                        href="/dashboard"
-                        onClick={() => setMenuOpen(false)}
-                        onMouseEnter={() => setHoveredItem("dashboard")}
-                        onMouseLeave={() => setHoveredItem(null)}
-                        style={dropdownItemStyle(pathname.startsWith("/dashboard"), hoveredItem === "dashboard")}
-                      >
-                        Dashboard
-                      </Link>
+                      {/* Main nav */}
+                      <NavLink href="/dashboard" label="Dashboard" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                      <NavLink href="/dashboard/published" label="Published Briefs" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                      <NavLink href="/dashboard/archive" label="Archive" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                      <NavLink href="/settings" label="Settings" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
 
-                      <Link
-                        href="/settings"
-                        onClick={() => setMenuOpen(false)}
-                        onMouseEnter={() => setHoveredItem("settings")}
-                        onMouseLeave={() => setHoveredItem(null)}
-                        style={dropdownItemStyle(pathname.startsWith("/settings"), hoveredItem === "settings")}
-                      >
-                        Settings
-                      </Link>
+                      {/* Admin section */}
+                      {(isAdmin || isEditor) && (
+                        <>
+                          <div style={{
+                            padding: "8px 18px 4px",
+                            fontSize: "10px",
+                            letterSpacing: "0.18em",
+                            textTransform: "uppercase",
+                            color: "rgba(212,175,55,0.45)",
+                            borderTop: "1px solid rgba(212,175,55,0.12)",
+                            marginTop: "4px",
+                            fontFamily: "Cinzel, serif",
+                          }}>
+                            Admin
+                          </div>
+                          {isAdmin && (
+                            <>
+                              <NavLink href="/dashboard/sources" label="Sources" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                              <NavLink href="/dashboard/users" label="Users" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                            </>
+                          )}
+                          {isEditor && (
+                            <NavLink href="/dashboard/sources" label="Pipeline Health" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                          )}
+                        </>
+                      )}
 
+                      {/* Sign out */}
                       <button
                         onClick={handleSignOut}
                         onMouseEnter={() => setHoveredItem("signout")}
                         onMouseLeave={() => setHoveredItem(null)}
                         style={{
-                          ...dropdownItemStyle(false, hoveredItem === "signout"),
+                          display: "block",
                           width: "100%",
+                          padding: "12px 18px",
                           textAlign: "left",
-                          background: hoveredItem === "signout" ? "rgba(212,175,55,0.18)" : "transparent",
+                          background: hoveredItem === "signout" ? "rgba(212,175,55,0.08)" : "transparent",
                           cursor: "pointer",
                           borderTop: "1px solid rgba(212,175,55,0.12)",
-                          color: "#ffffff",
+                          borderBottom: "none",
+                          borderLeft: "none",
+                          borderRight: "none",
+                          color: "rgba(255,255,255,0.5)",
                           fontFamily: "var(--font-jakarta), sans-serif",
                           fontSize: "13px",
                           letterSpacing: "0.08em",
-                          border: "none",
-                          borderBottom: "1px solid rgba(212,175,55,0.08)",
+                          transition: "background 0.15s",
                         }}
                       >
                         Sign Out
                       </button>
                     </>
                   ) : (
-                    <Link
-                      href="/login"
-                      onClick={() => setMenuOpen(false)}
-                      onMouseEnter={() => setHoveredItem("login")}
-                      onMouseLeave={() => setHoveredItem(null)}
-                      style={dropdownItemStyle(false, hoveredItem === "login")}
-                    >
-                      Sign In
-                    </Link>
+                    <NavLink href="/login" label="Sign In" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
                   )}
                 </>
               )}
             </div>
           )}
         </div>
-
       </div>
     </div>
   );
 }
 
-function dropdownItemStyle(active: boolean, hovered?: boolean): React.CSSProperties {
-  return {
-    display: "block",
-    padding: "12px 18px",
-    fontFamily: "var(--font-jakarta), sans-serif",
-    fontSize: "13px",
-    letterSpacing: "0.08em",
-    color: active ? "#D4AF37" : "#ffffff",
-    textDecoration: "none",
-    borderBottom: "1px solid rgba(212,175,55,0.08)",
-    transition: "background 0.15s",
-    background: hovered ? "rgba(212,175,55,0.18)" : "transparent",
-    cursor: "pointer",
-  };
+function NavLink({
+  href,
+  label,
+  pathname,
+  hovered,
+  setHovered,
+  onClose,
+}: {
+  href: string;
+  label: string;
+  pathname: string;
+  hovered: string | null;
+  setHovered: (v: string | null) => void;
+  onClose: () => void;
+}) {
+  const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+  const isHovered = hovered === href;
+  return (
+    <Link
+      href={href}
+      onClick={onClose}
+      onMouseEnter={() => setHovered(href)}
+      onMouseLeave={() => setHovered(null)}
+      style={{
+        display: "block",
+        padding: "12px 18px",
+        fontFamily: "var(--font-jakarta), sans-serif",
+        fontSize: "13px",
+        letterSpacing: "0.08em",
+        color: active ? "#D4AF37" : "rgba(255,255,255,0.8)",
+        textDecoration: "none",
+        borderBottom: "1px solid rgba(212,175,55,0.08)",
+        background: isHovered ? "rgba(212,175,55,0.08)" : "transparent",
+        transition: "background 0.15s",
+      }}
+    >
+      {label}
+    </Link>
+  );
 }

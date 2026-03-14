@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Footer from "@/components/Footer";
 import { TIER_PERMISSIONS } from "@/lib/tiers";
 import type { SubscriptionTier, DashboardSignal, SignalDomain } from "@/types/supabase";
-import PipelineHealth from "@/components/PipelineHealth";
 
 const DOMAIN_COLORS: Record<string, string> = {
   POWER: "power",
@@ -54,7 +53,7 @@ export default function DashboardClient({
   const searchParams = useSearchParams();
 
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [previewTier, setPreviewTier] = useState<SubscriptionTier>(tier);
+  const [previewTier, setPreviewTier] = useState<SubscriptionTier>(isEditor ? "editor" : tier);
   const [archiving, setArchiving] = useState<string | null>(null);
   const [bulkThreshold, setBulkThreshold] = useState("40");
   const [bulkCount, setBulkCount] = useState<number | null>(null);
@@ -183,8 +182,8 @@ export default function DashboardClient({
       {/* ── Top bar ── */}
       <div style={{ background: "var(--black)", padding: "14px 0", borderBottom: "1px solid #222", marginTop: "62px" }}>
         <div className="container" style={{ display: "flex", alignItems: "center", gap: "18px" }}>
-          <span style={{ color: "rgba(212,175,55,0.6)", fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-            Analyst Dashboard
+          <span style={{ color: "rgba(212,175,55,0.6)", fontSize: "13px", letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "Cinzel, serif" }}>
+            Signal Dashboard
           </span>
           <div style={{ flex: 1 }} />
           {isEditor && (
@@ -205,37 +204,62 @@ export default function DashboardClient({
       </div>
 
       {/* ── Permissions bar ── */}
-      <div style={{ background: "#0a0a0a", borderBottom: "1px solid #1a1a1a", padding: "8px 0" }}>
-        <div className="container" style={{ display: "flex", gap: "20px", fontSize: "11px" }}>
-          <span style={{ color: perms.canViewDomainScores ? "#4caf50" : "#555" }}>{perms.canViewDomainScores ? "✓" : "✗"} Domain Scores</span>
-          <span style={{ color: perms.canViewSignalScore ? "#4caf50" : "#555" }}>{perms.canViewSignalScore ? "✓" : "✗"} Signal Score</span>
-          <span style={{ color: perms.canViewConfidence ? "#4caf50" : "#555" }}>{perms.canViewConfidence ? "✓" : "✗"} Confidence</span>
-          <span style={{ color: perms.canSearchArchive ? "#4caf50" : "#555" }}>{perms.canSearchArchive ? "✓" : "✗"} Archive</span>
-          <span style={{ color: perms.canEditAndPublish ? "#4caf50" : "#555" }}>{perms.canEditAndPublish ? "✓" : "✗"} Edit & Publish</span>
-          <span style={{ color: "rgba(255,255,255,0.2)" }}>
-            Archive: {perms.archiveDaysBack === "unlimited" ? "Unlimited" : perms.archiveDaysBack === 0 ? "None" : `${perms.archiveDaysBack} days`}
-          </span>
+      <div style={{ background: "#0d0d0d", borderBottom: "1px solid #1a1a1a", padding: "12px 0" }}>
+        <div className="container" style={{ display: "flex", gap: "24px", flexWrap: "wrap", alignItems: "center" }}>
+          {[
+            { label: "Domain Scores", key: "canViewDomainScores" as const },
+            { label: "Signal Score", key: "canViewSignalScore" as const },
+            { label: "Confidence", key: "canViewConfidence" as const },
+            { label: "Archive", key: "canSearchArchive" as const },
+            { label: "Edit & Publish", key: "canEditAndPublish" as const },
+          ].map(({ label, key }) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{
+                width: "18px",
+                height: "18px",
+                borderRadius: "50%",
+                background: perms[key] ? "rgba(76,175,80,0.15)" : "rgba(255,255,255,0.05)",
+                border: `1px solid ${perms[key] ? "#4caf50" : "#333"}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "11px",
+                color: perms[key] ? "#4caf50" : "#444",
+                flexShrink: 0,
+              }}>
+                {perms[key] ? "✓" : "✗"}
+              </span>
+              <span style={{
+                fontSize: "12px",
+                letterSpacing: "0.06em",
+                color: perms[key] ? "rgba(255,255,255,0.7)" : "#444",
+                textTransform: "uppercase",
+              }}>
+                {label}
+              </span>
+            </div>
+          ))}
+          <div style={{ marginLeft: "auto", fontSize: "12px", color: "rgba(255,255,255,0.2)", letterSpacing: "0.06em" }}>
+            ARCHIVE:{" "}
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>
+              {perms.archiveDaysBack === "unlimited" ? "Unlimited" : perms.archiveDaysBack === 0 ? "None" : `${perms.archiveDaysBack} days`}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="dash-shell">
-        <aside className="dash-sidebar">
-          <div className="dash-sidebar-title">Navigation</div>
-          <Link href="/dashboard" className="dash-nav-link active">Signal Queue</Link>
-          <Link href="/dashboard/published" className="dash-nav-link">Published Briefs</Link>
-          <Link href="/dashboard/archive" className="dash-nav-link">Archive</Link>
-          {isAdmin && (
-            <div style={{ marginTop: "32px" }}>
-              <div className="dash-sidebar-title">Admin</div>
-              <Link href="/dashboard/sources" className="dash-nav-link">Sources</Link>
-              <Link href="/dashboard/users" className="dash-nav-link">Users</Link>
-              <PipelineHealth />
-            </div>
-          )}
-        </aside>
+      {/* ── Full width content ── */}
+      <div style={{ background: "var(--paper)", minHeight: "calc(100vh - 200px)" }}>
+        <div className="container" style={{ padding: "32px 0" }}>
 
-        <main className="dash-main">
-          <div className="dash-header">
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "24px",
+            paddingBottom: "16px",
+            borderBottom: "1px solid var(--line)",
+          }}>
             <div>
               <h1 className="dash-title">Signal Queue</h1>
               <p className="dash-subtitle">
@@ -502,7 +526,7 @@ export default function DashboardClient({
               <button onClick={() => handlePageChange(totalPages - 1)} disabled={page >= totalPages - 1} style={paginationBtn(page >= totalPages - 1)}>Last »</button>
             </div>
           )}
-        </main>
+        </div>
       </div>
 
       <Footer />

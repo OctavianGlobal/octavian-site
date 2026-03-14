@@ -26,13 +26,7 @@ interface PublishedClientProps {
 }
 
 export default function PublishedClient({
-  isAdmin,
-  isEditor,
-  signals,
-  count,
-  page,
-  domain,
-  tier,
+  isAdmin, isEditor, signals, count, page, domain, tier,
 }: PublishedClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -129,37 +123,45 @@ export default function PublishedClient({
           {signals.length === 0 ? (
             <div style={{ padding: "48px 0", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>No briefs published yet.</div>
           ) : (
-            signals.map((sig) => (
-              <article key={sig.id} className="brief-row" style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
-                <div className="brief-main" style={{ flex: 1, minWidth: 0 }}>
-                  <h3 className="brief-title">
-                    <Link href={`/briefs/${sig.id}`}>{sig.published_title ?? sig.cluster_summary ?? "Untitled"}</Link>
-                  </h3>
-                  <div className="meta" style={{ margin: "4px 0 8px" }}>
-                    <span className="meta-item">
-                      {sig.published_at ? new Date(sig.published_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—"}
-                    </span>
-                    <span className="meta-dot" />
-                    {sig.primary_domain && <span className={`tag-pill ${DOMAIN_COLORS[sig.primary_domain] ?? ""}`}>{sig.primary_domain}</span>}
+            signals.map((sig) => {
+              const title = sig.published_title ?? sig.cluster_summary ?? "Untitled";
+              // Only show description if it differs from the title
+              const description = sig.cluster_summary && sig.cluster_summary !== sig.published_title
+                ? sig.cluster_summary
+                : null;
+
+              return (
+                <article key={sig.id} className="brief-row" style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                  <div className="brief-main" style={{ flex: 1, minWidth: 0 }}>
+                    <h3 className="brief-title">
+                      <Link href={`/briefs/${sig.id}`}>{title}</Link>
+                    </h3>
+                    <div className="meta" style={{ margin: "4px 0 8px" }}>
+                      <span className="meta-item">
+                        {sig.published_at ? new Date(sig.published_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—"}
+                      </span>
+                      <span className="meta-dot" />
+                      {sig.primary_domain && <span className={`tag-pill ${DOMAIN_COLORS[sig.primary_domain] ?? ""}`}>{sig.primary_domain}</span>}
+                    </div>
+                    {description && <p className="brief-desc">{description}</p>}
                   </div>
-                  <p className="brief-desc">{sig.cluster_summary ?? ""}</p>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0, width: "110px" }}>
-                  {perms.canViewSignalScore && sig.score !== null ? (
-                    <>
-                      <div className="queue-score">{Math.round(sig.score * 100)}</div>
-                      <div className="queue-score-label">Signal Score</div>
-                    </>
-                  ) : (
-                    <div style={{ color: "#444", fontSize: "22px", fontWeight: "bold" }}>—</div>
-                  )}
-                  <Link href={`/briefs/${sig.id}`} className="read" style={{ display: "block", marginTop: "8px", fontSize: "13px" }}>Read →</Link>
-                  {isEditor && (
-                    <Link href={`/dashboard/review/${sig.id}`} className="btn-light" style={{ marginTop: "8px", fontSize: "12px", padding: "6px 10px", display: "inline-block" }}>Edit</Link>
-                  )}
-                </div>
-              </article>
-            ))
+                  <div style={{ textAlign: "right", flexShrink: 0, width: "110px" }}>
+                    {perms.canViewSignalScore && sig.score !== null ? (
+                      <>
+                        <div className="queue-score">{Math.round(sig.score * 100)}</div>
+                        <div className="queue-score-label">Signal Score</div>
+                      </>
+                    ) : (
+                      <div style={{ color: "#444", fontSize: "22px", fontWeight: "bold" }}>—</div>
+                    )}
+                    <Link href={`/briefs/${sig.id}`} className="read" style={{ display: "block", marginTop: "8px", fontSize: "13px" }}>Read →</Link>
+                    {isEditor && (
+                      <Link href={`/dashboard/review/${sig.id}`} className="btn-light" style={{ marginTop: "8px", fontSize: "12px", padding: "6px 10px", display: "inline-block" }}>Edit</Link>
+                    )}
+                  </div>
+                </article>
+              );
+            })
           )}
 
           {totalPages > 1 && (

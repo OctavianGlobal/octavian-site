@@ -92,7 +92,7 @@ export async function GET(
       .select('*', { count: 'exact', head: true })
       .eq('cluster_id', cluster.id)
 
-    // Fetch source items + source name
+    // Fetch source items + source name + source type
     const { data: clusterItemRows } = await supabase
       .from('cluster_items')
       .select('item_id')
@@ -104,6 +104,7 @@ export async function GET(
       url: string | null
       snippet: string | null
       source_name: string | null
+      source_type: string | null
     }[] = []
 
     const itemIds = (clusterItemRows ?? []).map((ci: any) => ci.item_id)
@@ -117,59 +118,60 @@ export async function GET(
         (itemRows ?? []).map((i: any) => i.source_id).filter(Boolean)
       )]
 
-      let sourceNameMap: Record<string, string> = {}
+      let sourceMap: Record<string, { name: string; type: string | null }> = {}
       if (sourceIds.length > 0) {
         const { data: sourceRows } = await supabase
           .from('sources')
-          .select('id, name')
+          .select('id, name, type')
           .in('id', sourceIds)
-        sourceNameMap = Object.fromEntries(
-          (sourceRows ?? []).map((src: any) => [src.id, src.name])
+        sourceMap = Object.fromEntries(
+          (sourceRows ?? []).map((src: any) => [src.id, { name: src.name, type: src.type ?? null }])
         )
       }
 
       sourceItems = (itemRows ?? []).map((item: any) => ({
-        title: item.title ?? null,
-        url: item.url ?? null,
-        snippet: item.snippet ?? null,
-        source_name: sourceNameMap[item.source_id] ?? null,
+        title:       item.title ?? null,
+        url:         item.url ?? null,
+        snippet:     item.snippet ?? null,
+        source_name: sourceMap[item.source_id]?.name ?? null,
+        source_type: sourceMap[item.source_id]?.type ?? null,
       }))
     }
 
     return NextResponse.json({
-      id: s.id,
-      cluster_id: s.cluster_id,
-      status: s.status,
-      created_at: s.created_at,
-      published_title: s.published_title ?? null,
-      published_body_md: s.published_body_md ?? null,
-      cluster_summary: cluster.cluster_summary ?? null,
-      primary_domain: cluster.primary_domain ?? null,
-domains_jsonb: (() => {
-  const raw = cluster.domains_jsonb;
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw === "string") {
-    try { return JSON.parse(raw); } catch { return []; }
-  }
-  return [];
-})(),
-      entity_names: entityNames,
-      tag_names: tagNames,
-      item_count: itemCount ?? 0,
-      source_items: sourceItems,
-      signal_score_raw: scores.signal_score_raw ?? null,
-      power_score: scores.power_score ?? null,
-      money_score: scores.money_score ?? null,
-      rules_score: scores.rules_score ?? null,
-      ai_confidence: scores.ai_confidence ?? null,
-      evidence_score: scores.evidence_score ?? null,
-      impact_score: scores.impact_score ?? null,
-      novelty_score: scores.novelty_score ?? null,
-      anomaly_score: scores.anomaly_score ?? null,
-      credibility_score: scores.credibility_score ?? null,
+      id:                  s.id,
+      cluster_id:          s.cluster_id,
+      status:              s.status,
+      created_at:          s.created_at,
+      published_title:     s.published_title ?? null,
+      published_body_md:   s.published_body_md ?? null,
+      cluster_summary:     cluster.cluster_summary ?? null,
+      primary_domain:      cluster.primary_domain ?? null,
+      domains_jsonb: (() => {
+        const raw = cluster.domains_jsonb
+        if (!raw) return []
+        if (Array.isArray(raw)) return raw
+        if (typeof raw === 'string') {
+          try { return JSON.parse(raw) } catch { return [] }
+        }
+        return []
+      })(),
+      entity_names:        entityNames,
+      tag_names:           tagNames,
+      item_count:          itemCount ?? 0,
+      source_items:        sourceItems,
+      signal_score_raw:    scores.signal_score_raw ?? null,
+      power_score:         scores.power_score ?? null,
+      money_score:         scores.money_score ?? null,
+      rules_score:         scores.rules_score ?? null,
+      ai_confidence:       scores.ai_confidence ?? null,
+      evidence_score:      scores.evidence_score ?? null,
+      impact_score:        scores.impact_score ?? null,
+      novelty_score:       scores.novelty_score ?? null,
+      anomaly_score:       scores.anomaly_score ?? null,
+      credibility_score:   scores.credibility_score ?? null,
       corroboration_score: scores.corroboration_score ?? null,
-      severity_modifier: scores.severity_modifier ?? null,
+      severity_modifier:   scores.severity_modifier ?? null,
     })
   } catch (err) {
     console.error('[api/signals/review/[id]]', err)

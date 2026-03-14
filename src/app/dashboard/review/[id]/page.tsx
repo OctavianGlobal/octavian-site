@@ -9,6 +9,7 @@ interface SourceItem {
   url: string | null;
   snippet: string | null;
   source_name: string | null;
+  source_type: string | null;
 }
 
 interface SignalReviewData {
@@ -39,6 +40,12 @@ interface SignalReviewData {
   severity_modifier: number | null;
 }
 
+interface SocialTeasers {
+  power: string | null;
+  money: string | null;
+  rules: string | null;
+}
+
 const DOMAIN_COLORS: Record<string, string> = {
   POWER: "#e53935",
   MONEY: "#43a047",
@@ -46,6 +53,22 @@ const DOMAIN_COLORS: Record<string, string> = {
   ENVIRONMENT: "#00897b",
   TECHNOLOGY: "#8e24aa",
 };
+
+// ── Source tier logic ─────────────────────────────────────────────────────────
+
+const SOURCE_TIER: Record<string, { label: string; color: string; bg: string }> = {
+  institution:   { label: "1st Tier", color: "#166534", bg: "#f0fdf4" },
+  wire:          { label: "2nd Tier", color: "#854d0e", bg: "#fefce8" },
+  environmental: { label: "2nd Tier", color: "#854d0e", bg: "#fefce8" },
+  media:         { label: "2nd Tier", color: "#854d0e", bg: "#fefce8" },
+  tech:          { label: "2nd Tier", color: "#854d0e", bg: "#fefce8" },
+  think_tank:    { label: "3rd Tier", color: "#991b1b", bg: "#fff5f5" },
+};
+
+function getTier(sourceType: string | null) {
+  if (!sourceType) return null;
+  return SOURCE_TIER[sourceType] ?? null;
+}
 
 // ── Stoplight logic ───────────────────────────────────────────────────────────
 
@@ -82,14 +105,9 @@ function StoplightBubble({ color }: { color: StoplightColor }) {
   const s = STOPLIGHT[color];
   return (
     <span style={{
-      display: "inline-block",
-      width: "10px",
-      height: "10px",
-      borderRadius: "50%",
-      background: s.bg,
-      border: `1px solid ${s.border}`,
-      boxShadow: color !== "none" ? `0 0 4px ${s.glow}` : "none",
-      flexShrink: 0,
+      display: "inline-block", width: "10px", height: "10px", borderRadius: "50%",
+      background: s.bg, border: `1px solid ${s.border}`,
+      boxShadow: color !== "none" ? `0 0 4px ${s.glow}` : "none", flexShrink: 0,
     }} />
   );
 }
@@ -115,6 +133,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const [notFound, setNotFound] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [teasers, setTeasers] = useState<SocialTeasers | null>(null);
+  const [validationQuery, setValidationQuery] = useState<string | null>(null);
+  const [showTeasers, setShowTeasers] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "published" | "archived" | "error">("idle");
@@ -136,6 +157,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     if (!signal) return;
     setDrafting(true);
     setDraftError("");
+    setTeasers(null);
+    setValidationQuery(null);
+    setShowTeasers(false);
     try {
       const res = await fetch("/api/signals/draft", {
         method: "POST",
@@ -143,8 +167,10 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
         body: JSON.stringify({ signal_id: id }),
       });
       if (!res.ok) throw new Error("Draft failed");
-      const { draft } = await res.json();
-      setBody(draft);
+      const data = await res.json();
+      if (data.draft) setBody(data.draft);
+      if (data.teasers) { setTeasers(data.teasers); setShowTeasers(true); }
+      if (data.validation_query) setValidationQuery(data.validation_query);
     } catch {
       setDraftError("Draft failed. Try again.");
     } finally {
@@ -167,9 +193,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       });
       if (!res.ok) throw new Error("Publish failed");
       setStatus("published");
-    } catch {
-      setStatus("error");
-    }
+    } catch { setStatus("error"); }
   }
 
   async function handleArchive() {
@@ -182,9 +206,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       });
       if (!res.ok) throw new Error("Archive failed");
       setStatus("archived");
-    } catch {
-      alert("Archive failed. Please try again.");
-    }
+    } catch { alert("Archive failed. Please try again."); }
   }
 
   if (loading) return (
@@ -202,20 +224,27 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     ? Math.round(signal.signal_score_raw * 100)
     : null;
 
-const rawDomains = (() => {
-  if (!signal.domains_jsonb) return [];
-  if (Array.isArray(signal.domains_jsonb)) return signal.domains_jsonb;
-  if (typeof signal.domains_jsonb === "string") {
-    try { return JSON.parse(signal.domains_jsonb); } catch { return []; }
-  }
-  return [];
-})();
-const domains: string[] = Array.isArray(rawDomains) && rawDomains.length
-  ? rawDomains
-  : signal.primary_domain ? [signal.primary_domain] : [];
+  const rawDomains = (() => {
+    if (!signal.domains_jsonb) return [];
+    if (Array.isArray(signal.domains_jsonb)) return signal.domains_jsonb;
+    if (typeof signal.domains_jsonb === "string") {
+      try { return JSON.parse(signal.domains_jsonb); } catch { return []; }
+    }
+    return [];
+  })();
+  const domains: string[] = Array.isArray(rawDomains) && rawDomains.length
+    ? rawDomains
+    : signal.primary_domain ? [signal.primary_domain] : [];
 
   const readiness = getOverallReadiness(scorePct);
   const readinessStyle = STOPLIGHT[readiness.color];
+
+  // Unique sources with dedup
+  const uniqueSources = [...new Map(
+    (signal.source_items ?? [])
+      .filter((s: SourceItem) => s.source_name)
+      .map((s: SourceItem) => [s.source_name, s])
+  ).values()];
 
   if (status === "published") return (
     <>
@@ -264,10 +293,7 @@ const domains: string[] = Array.isArray(rawDomains) && rawDomains.length
 
               {/* ── Source context ── */}
               {(signal.source_items ?? []).length > 0 && (
-                <div style={{
-                  background: "#fafafa", border: "1px solid #e6e6e6",
-                  borderRadius: "8px", padding: "16px", marginBottom: "24px",
-                }}>
+                <div style={{ background: "#fafafa", border: "1px solid #e6e6e6", borderRadius: "8px", padding: "16px", marginBottom: "24px" }}>
                   <div style={{ fontSize: "11px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#888", marginBottom: "12px", fontFamily: "var(--font-jakarta), sans-serif" }}>
                     Source Items
                   </div>
@@ -315,7 +341,7 @@ const domains: string[] = Array.isArray(rawDomains) && rawDomains.length
                 <button className="btn-light" onClick={handleDraft} disabled={drafting} style={{ fontSize: "12px" }}>
                   {drafting ? "Drafting…" : body ? "↺ Redraft with AI" : "✦ Get AI Draft"}
                 </button>
-                {drafting && <span style={{ fontSize: "12px", color: "var(--muted)" }}>Generating brief…</span>}
+                {drafting && <span style={{ fontSize: "12px", color: "var(--muted)" }}>Generating brief + social teasers…</span>}
                 {draftError && <span style={{ fontSize: "12px", color: "#c62828" }}>{draftError}</span>}
                 {!body && !drafting && (
                   <span style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "0.04em" }}>or write the brief manually below</span>
@@ -332,12 +358,59 @@ const domains: string[] = Array.isArray(rawDomains) && rawDomains.length
                 />
               </div>
 
+              {/* ── Social teasers panel ── */}
+              {teasers && showTeasers && (
+                <div style={{ background: "#fafafa", border: "1px solid #e6e6e6", borderRadius: "8px", padding: "20px", marginBottom: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+                    <div style={{ fontSize: "11px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#888", fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 600 }}>
+                      Social Teasers
+                    </div>
+                    <button onClick={() => setShowTeasers(false)} style={{ background: "none", border: "none", color: "#aaa", cursor: "pointer", fontSize: "12px" }}>Hide</button>
+                  </div>
+                  {[
+                    { key: "power" as const, label: "Power", color: "#e53935" },
+                    { key: "money" as const, label: "Money", color: "#43a047" },
+                    { key: "rules" as const, label: "Rules", color: "#1e88e5" },
+                  ].map(({ key, label, color }) => teasers[key] && (
+                    <div key={key} style={{ marginBottom: "14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", color, fontFamily: "Cinzel, serif" }}>{label}</span>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(teasers[key] ?? "")}
+                          style={{ background: "none", border: "1px solid #d0d0d0", color: "#888", fontSize: "10px", padding: "2px 8px", borderRadius: "4px", cursor: "pointer", fontFamily: "var(--font-jakarta), sans-serif" }}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#333", lineHeight: 1.6, fontFamily: "var(--font-jakarta), sans-serif", background: "#fff", border: "1px solid #e6e6e6", borderRadius: "6px", padding: "10px 12px" }}>
+                        {teasers[key]}
+                      </div>
+                    </div>
+                  ))}
+                  {validationQuery && (
+                    <div style={{ marginTop: "4px", paddingTop: "14px", borderTop: "1px solid #e6e6e6" }}>
+                      <div style={{ fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#888", fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 600, marginBottom: "6px" }}>
+                        Validation Query
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#555", fontFamily: "monospace", background: "#fff", border: "1px solid #e6e6e6", borderRadius: "6px", padding: "8px 12px" }}>
+                        {validationQuery}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {status === "error" && (
                 <div className="auth-error" style={{ marginBottom: "12px" }}>Publish failed. Please try again.</div>
               )}
 
+              {/* ── Action buttons ABOVE score panel ── */}
               <div className="form-actions" style={{ marginTop: "8px" }}>
-                <button className="btn-gold" onClick={handlePublish} disabled={status === "saving" || !title.trim() || drafting}>
+                <button
+                  className="btn-gold"
+                  onClick={handlePublish}
+                  disabled={status === "saving" || !title.trim() || drafting}
+                >
                   {status === "saving" ? "Publishing…" : "Publish Brief →"}
                 </button>
                 <button className="btn-light" onClick={handleArchive}>Archive Signal</button>
@@ -362,12 +435,13 @@ const domains: string[] = Array.isArray(rawDomains) && rawDomains.length
                 }}>
                   <span style={{
                     width: "12px", height: "12px", borderRadius: "50%", flexShrink: 0,
-                    background: readinessStyle.bg,
-                    border: `1px solid ${readinessStyle.border}`,
+                    background: readinessStyle.bg, border: `1px solid ${readinessStyle.border}`,
                     boxShadow: readiness.color !== "none" ? `0 0 6px ${readinessStyle.glow}` : "none",
                   }} />
                   <div>
-                    <div style={{ fontSize: "13px", fontWeight: 700, color: readiness.color === "green" ? "#166534" : readiness.color === "yellow" ? "#854d0e" : readiness.color === "red" ? "#991b1b" : "#555", fontFamily: "Cinzel, serif", letterSpacing: "0.08em" }}>
+                    <div style={{ fontSize: "13px", fontWeight: 700, fontFamily: "Cinzel, serif", letterSpacing: "0.08em",
+                      color: readiness.color === "green" ? "#166534" : readiness.color === "yellow" ? "#854d0e" : readiness.color === "red" ? "#991b1b" : "#555",
+                    }}>
                       {readiness.label}
                     </div>
                     <div style={{ fontSize: "11px", color: "var(--muted)" }}>{readiness.desc}</div>
@@ -426,12 +500,12 @@ const domains: string[] = Array.isArray(rawDomains) && rawDomains.length
                     Score Breakdown
                   </div>
                   {[
-                    { label: "Evidence",      value: signal.evidence_score,      key: "evidence" },
-                    { label: "Impact",         value: signal.impact_score,         key: "impact" },
-                    { label: "Novelty",        value: signal.novelty_score,        key: "novelty" },
-                    { label: "Anomaly",        value: signal.anomaly_score,        key: "anomaly" },
-                    { label: "Credibility",    value: signal.credibility_score,    key: "credibility" },
-                    { label: "Corroboration",  value: signal.corroboration_score,  key: "corroboration" },
+                    { label: "Evidence",     value: signal.evidence_score,     key: "evidence" },
+                    { label: "Impact",       value: signal.impact_score,       key: "impact" },
+                    { label: "Novelty",      value: signal.novelty_score,      key: "novelty" },
+                    { label: "Anomaly",      value: signal.anomaly_score,      key: "anomaly" },
+                    { label: "Credibility",  value: signal.credibility_score,  key: "credibility" },
+                    { label: "Corroboration", value: signal.corroboration_score, key: "corroboration" },
                   ].map(({ label, value, key }) => (
                     <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", marginBottom: "6px" }}>
                       <span style={{ color: "var(--muted)" }}>{label}</span>
@@ -459,20 +533,40 @@ const domains: string[] = Array.isArray(rawDomains) && rawDomains.length
                   ))}
                 </div>
 
-                {/* Meta */}
+                {/* Meta — sources with tier badges */}
                 <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>
                   {signal.ai_confidence !== null && !isNaN(signal.ai_confidence) && (
-                    <div style={{ marginBottom: "4px" }}>
+                    <div style={{ marginBottom: "8px" }}>
                       AI Confidence: <strong style={{ color: "var(--ink)" }}>{Math.round(signal.ai_confidence * 100)}%</strong>
                     </div>
                   )}
                   <div>
-                    Sources: <strong style={{ color: "var(--ink)" }}>
-                      {signal.source_items?.length > 0
-                        ? [...new Set(signal.source_items.map((s: SourceItem) => s.source_name).filter(Boolean))].join(", ")
-                        : `${signal.item_count} item${signal.item_count !== 1 ? "s" : ""}`
-                      }
-                    </strong>
+                    <div style={{ marginBottom: "6px" }}>Sources:</div>
+                    {uniqueSources.length > 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {uniqueSources.map((s: SourceItem) => {
+                          const tier = getTier(s.source_type);
+                          return (
+                            <div key={s.source_name} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <strong style={{ color: "var(--ink)", fontSize: "12px" }}>{s.source_name}</strong>
+                              {tier && (
+                                <span style={{
+                                  fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em",
+                                  padding: "2px 6px", borderRadius: "4px",
+                                  background: tier.bg, color: tier.color,
+                                }}>
+                                  {tier.label}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <strong style={{ color: "var(--ink)" }}>
+                        {signal.item_count} item{signal.item_count !== 1 ? "s" : ""}
+                      </strong>
+                    )}
                   </div>
                 </div>
 

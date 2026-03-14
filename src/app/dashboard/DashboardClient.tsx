@@ -174,59 +174,50 @@ export default function DashboardClient({
         </div>
       </div>
 
-      {/* ── Permissions bar ── */}
-      <div style={{ background: "#0d0d0d", borderBottom: "1px solid #1a1a1a", padding: "12px 0" }}>
-        <div className="container" style={{ display: "flex", gap: "24px", flexWrap: "nowrap", alignItems: "center", overflowX: "auto" }}>
-          {[
-            { label: "Domain Scores", key: "canViewDomainScores" as const },
-            { label: "Signal Score", key: "canViewSignalScore" as const },
-            { label: "Confidence", key: "canViewConfidence" as const },
-            { label: "Archive", key: "canSearchArchive" as const },
-            { label: "Edit & Publish", key: "canEditAndPublish" as const },
-          ].map(({ label, key }) => (
-            <div key={key} style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-              <span style={{
-                width: "18px", height: "18px", borderRadius: "50%",
-                background: perms[key] ? "rgba(76,175,80,0.15)" : "rgba(255,255,255,0.03)",
-                border: `1px solid ${perms[key] ? "#4caf50" : "#3a3a3a"}`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "11px", color: perms[key] ? "#4caf50" : "#666", flexShrink: 0,
-              }}>
-                {perms[key] ? "✓" : "✗"}
-              </span>
-              <span style={{
-                fontSize: "12px", letterSpacing: "0.06em", textTransform: "uppercase",
-                color: perms[key] ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.35)",
-                whiteSpace: "nowrap",
-              }}>
-                {label}
-              </span>
-            </div>
-          ))}
-          <div style={{ marginLeft: "auto", fontSize: "12px", letterSpacing: "0.06em", flexShrink: 0, display: "flex", alignItems: "center", gap: "16px" }}>
-            <span>
-              <span style={{ color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>Archive: </span>
-              <span style={{ color: "rgba(255,255,255,0.65)" }}>
-                {perms.archiveDaysBack === "unlimited" ? "Unlimited" : perms.archiveDaysBack === 0 ? "None" : `${perms.archiveDaysBack} days`}
-              </span>
-            </span>
-            {isEditor && (
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ color: "rgba(255,255,255,0.55)", fontSize: "11px", letterSpacing: "0.08em", whiteSpace: "nowrap" }}>PREVIEW AS:</span>
-                <select
-                  value={previewTier}
-                  onChange={(e) => setPreviewTier(e.target.value as SubscriptionTier)}
-                  style={{ background: "#111", border: "1px solid #333", color: "var(--gold)", fontSize: "11px", padding: "4px 8px", cursor: "pointer" }}
-                >
-                  {TIERS.map((t) => (
-                    <option key={t} value={t}>{t.replace(/_/g, " ").toUpperCase()}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        </div>
+ {/* ── Permissions bar ── */}
+<div style={{ background: "#0d0d0d", borderBottom: "1px solid #1a1a1a", padding: "12px 0" }}>
+  <div className="container" style={{ display: "flex", gap: "24px", flexWrap: "nowrap", alignItems: "center", overflowX: "auto" }}>
+    {[
+      { label: "Domain Scores", key: "canViewDomainScores" as const },
+      { label: "Signal Score",  key: "canViewSignalScore" as const },
+      { label: "Confidence",    key: "canViewConfidence" as const },
+      { label: "Edit & Publish", key: "canEditAndPublish" as const },
+    ].map(({ label, key }) => (
+      <div key={key} style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+        <span style={{
+          width: "18px", height: "18px", borderRadius: "50%",
+          background: perms[key] ? "rgba(76,175,80,0.15)" : "rgba(255,255,255,0.03)",
+          border: `1px solid ${perms[key] ? "#4caf50" : "#3a3a3a"}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "11px", color: perms[key] ? "#4caf50" : "#666", flexShrink: 0,
+        }}>
+          {perms[key] ? "✓" : "✗"}
+        </span>
+        <span style={{
+          fontSize: "12px", letterSpacing: "0.06em", textTransform: "uppercase",
+          color: perms[key] ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.35)",
+          whiteSpace: "nowrap",
+        }}>
+          {label}
+        </span>
       </div>
+    ))}
+    {isEditor && (
+      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: "11px", letterSpacing: "0.08em", whiteSpace: "nowrap" }}>PREVIEW AS:</span>
+        <select
+          value={previewTier}
+          onChange={(e) => setPreviewTier(e.target.value as SubscriptionTier)}
+          style={{ background: "#111", border: "1px solid #333", color: "var(--gold)", fontSize: "11px", padding: "4px 8px", cursor: "pointer" }}
+        >
+          {TIERS.map((t) => (
+            <option key={t} value={t}>{t.replace(/_/g, " ").toUpperCase()}</option>
+          ))}
+        </select>
+      </div>
+    )}
+  </div>
+</div>
 
       {/* ── Full width content ── */}
       <div style={{ background: "var(--paper)", minHeight: "calc(100vh - 200px)" }}>
@@ -245,7 +236,7 @@ export default function DashboardClient({
             </div>
           </div>
 
-          {/* ── Bulk Archive Tool ── */}
+          {/* ── Bulk Archive Tool ── 
           {isEditor && (
             <div style={{
               background: "#fafafa", border: "1px solid var(--line)", borderRadius: "8px",
@@ -284,7 +275,7 @@ export default function DashboardClient({
               )}
             </div>
           )}
-
+*/}
           {/* ── Advanced Archive Tool ── */}
           {isEditor && (
             <AdvancedArchiveTool onComplete={() => { setBulkRefreshKey(k => k + 1); router.refresh(); }} />

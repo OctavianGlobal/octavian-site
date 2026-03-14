@@ -1,6 +1,7 @@
 // ============================================================
 // src/app/api/signals/draft/route.ts
-// Octavian Global — AI brief drafting via Claude Haiku
+// Octavian Global — AI brief drafting via Claude
+// Returns: brief body + 3 social teasers + validation query
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -14,10 +15,21 @@ const anthropic = new Anthropic({
 
 const SYSTEM_PROMPT = `You are a strategic intelligence analyst for Octavian Global, a signal intelligence platform. You write concise, authoritative briefs for senior analysts and decision-makers.
 
-BRIEF FORMAT — follow this exactly, in markdown. Do NOT include a title — the editor writes the title separately.
+You will return a JSON object with exactly this structure:
+{
+  "brief": "the full brief in markdown",
+  "teasers": {
+    "power": "60-word Power teaser for social media",
+    "money": "60-word Money teaser for social media",
+    "rules": "60-word Rules teaser for social media"
+  },
+  "validation_query": "search string to verify this prediction later"
+}
+
+BRIEF FORMAT — markdown, no title:
 
 **Signal**
-One paragraph (2-4 sentences) explaining what happened. Factual, direct, no editorializing.
+One paragraph (2-4 sentences). Factual, direct, no editorializing.
 
 **Why It Matters**
 - [Strategic implication 1]
@@ -32,19 +44,28 @@ One paragraph (2-4 sentences) explaining what happened. Factual, direct, no edit
 **Sources**
 [Source name 1] · [Source name 2] · [Source name 3]
 
-VOICE RULES:
+BRIEF VOICE RULES:
 - Analytical, not alarmist
 - Active voice, present tense where possible
-- No hedging phrases like "it remains to be seen" or "time will tell"
-- No jargon or acronyms without expansion
+- No hedging phrases like "it remains to be seen"
+- No jargon without expansion
 - Never mention signal scores, AI confidence, or internal platform data
-- Do not speculate beyond what the source data supports
-- The Why It Matters bullets explain strategic consequence — not just what happened
-- The Watch bullets must be specific and observable, not generic (e.g. "Congressional committee markup scheduled for April" not "watch for legislative developments")
+- Watch bullets must be specific and observable
+- 120–220 words total
 
-LENGTH: 120–220 words total. If you exceed 220 words, cut the weakest bullet.
+SOCIAL TEASER RULES (for each of power/money/rules):
+- Exactly 60 words
+- Hook first line — make it feel urgent
+- Reference the specific domain (power=geopolitical force, money=economic consequence, rules=regulatory/legal shift)
+- End with "Read the full brief at Octavian Global →"
+- No hashtags
 
-Return ONLY the brief in markdown. No title. No preamble, no explanation, no commentary.`
+VALIDATION QUERY RULES:
+- A precise search string (3-6 words + quotes where needed) that would confirm this signal's prediction came true
+- Example: "EU defense procurement treaty signed" or "Fed rate cut announcement"
+- Must be specific enough to distinguish confirmation from noise
+
+Return ONLY the JSON object. No preamble, no markdown fences.`
 
 
 export async function POST(request: NextRequest) {
@@ -111,7 +132,7 @@ export async function POST(request: NextRequest) {
       tagNames = (tagRows ?? []).map((t: any) => t.name.replace(/_/g, ' '))
     }
 
-    // Fetch actual source titles for the Sources section
+    // Fetch source names
     let sourceNames: string[] = []
     const { data: itemRows } = await supabase
       .from('cluster_items')
@@ -136,7 +157,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const domains: string[] = cluster.domains_jsonb?.length
+    const domains: string[] = Array.isArray(cluster.domains_jsonb) && cluster.domains_jsonb.length
       ? cluster.domains_jsonb
       : cluster.primary_domain ? [cluster.primary_domain] : []
 
@@ -148,7 +169,7 @@ export async function POST(request: NextRequest) {
           month: 'long', day: 'numeric', year: 'numeric'
         })
 
-    const userPrompt = `Write an Octavian Global brief for the following signal. Do not include a title.
+    const userPrompt = `Generate an Octavian Global brief and social teasers for this signal.
 
 SIGNAL DATA:
 - Summary: ${cluster.cluster_summary ?? 'No summary available'}
@@ -161,18 +182,65 @@ ${entityNames.length ? `- Key entities: ${entityNames.join(', ')}` : ''}
 ${tagNames.length ? `- Topics: ${tagNames.join(', ')}` : ''}
 ${sourceNames.length ? `- Sources: ${sourceNames.join(', ')}` : ''}
 
-Write the brief now. Start directly with **Signal** — no title.`
+Return the JSON object now.`
 
     const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 600,
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1500,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userPrompt }],
     })
 
-    const draft = (message.content[0] as any).text?.trim() ?? ''
+    const rawText = (message.content[0] as any).text?.trim() ?? ''
 
-    return NextResponse.json({ draft })
+    // Parse JSON response
+    let parsed: any
+    try {
+      const clean = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+      parsed = JSON.parse(clean)
+    } catch {
+      // Fallback — if JSON parsing fails, treat entire response as brief
+      console.error('[draft] JSON parse failed, falling back to raw text')
+      return NextResponse.json({ draft: rawText, teasers: null, validation_query: null })
+    }
+
+    const draft = parsed.brief ?? rawText
+    const teasers = parsed.teasers ?? null
+    const validation_query = parsed.validation_query ?? null
+
+    // Store social teasers in social_posts table
+    if (teasers) {
+      const teaserRows = ['power', 'money', 'rules']
+        .filter(metric => teasers[metric])
+        .map(metric => ({
+          brief_id: signal_id,
+          content: teasers[metric],
+          platform: 'pending',
+          metric: metric.toUpperCase(),
+          status: 'draft',
+        }))
+
+      if (teaserRows.length > 0) {
+        // Delete existing draft teasers for this signal first
+        await supabase
+          .from('social_posts')
+          .delete()
+          .eq('brief_id', signal_id)
+          .eq('status', 'draft')
+
+        await supabase.from('social_posts').insert(teaserRows)
+      }
+    }
+
+    // Store validation query on the signal
+    if (validation_query) {
+      await supabase
+        .from('signals')
+        .update({ validation_query })
+        .eq('id', signal_id)
+    }
+
+    return NextResponse.json({ draft, teasers, validation_query })
 
   } catch (err) {
     console.error('[api/signals/draft]', err)

@@ -47,6 +47,60 @@ const DOMAIN_COLORS: Record<string, string> = {
   TECHNOLOGY: "#8e24aa",
 };
 
+// ── Stoplight logic ───────────────────────────────────────────────────────────
+
+type StoplightColor = "green" | "yellow" | "red" | "none";
+
+const STOPLIGHT: Record<StoplightColor, { bg: string; border: string; glow: string }> = {
+  green:  { bg: "#22c55e", border: "#16a34a", glow: "rgba(34,197,94,0.4)" },
+  yellow: { bg: "#eab308", border: "#ca8a04", glow: "rgba(234,179,8,0.4)" },
+  red:    { bg: "#ef4444", border: "#dc2626", glow: "rgba(239,68,68,0.4)" },
+  none:   { bg: "#d1d5db", border: "#9ca3af", glow: "transparent" },
+};
+
+const THRESHOLDS: Record<string, { green: number; yellow: number }> = {
+  signal:        { green: 0.65, yellow: 0.40 },
+  evidence:      { green: 0.65, yellow: 0.40 },
+  impact:        { green: 0.65, yellow: 0.40 },
+  novelty:       { green: 0.55, yellow: 0.35 },
+  anomaly:       { green: 0.55, yellow: 0.30 },
+  credibility:   { green: 0.70, yellow: 0.45 },
+  corroboration: { green: 0.50, yellow: 0.25 },
+  domain:        { green: 3.5,  yellow: 2.0  },
+};
+
+function getStoplight(key: string, value: number | null | undefined): StoplightColor {
+  if (value === null || value === undefined || isNaN(value)) return "none";
+  const t = THRESHOLDS[key];
+  if (!t) return "none";
+  if (value >= t.green) return "green";
+  if (value >= t.yellow) return "yellow";
+  return "red";
+}
+
+function StoplightBubble({ color }: { color: StoplightColor }) {
+  const s = STOPLIGHT[color];
+  return (
+    <span style={{
+      display: "inline-block",
+      width: "10px",
+      height: "10px",
+      borderRadius: "50%",
+      background: s.bg,
+      border: `1px solid ${s.border}`,
+      boxShadow: color !== "none" ? `0 0 4px ${s.glow}` : "none",
+      flexShrink: 0,
+    }} />
+  );
+}
+
+function getOverallReadiness(scorePct: number | null): { label: string; color: StoplightColor; desc: string } {
+  if (scorePct === null) return { label: "No Score", color: "none", desc: "Signal has not been scored yet" };
+  if (scorePct >= 65) return { label: "Publish", color: "green", desc: "Signal meets publishing threshold" };
+  if (scorePct >= 40) return { label: "Consider", color: "yellow", desc: "Review carefully before publishing" };
+  return { label: "Hold", color: "red", desc: "Signal does not meet publishing threshold" };
+}
+
 function fmt(value: number | null | undefined): string {
   if (value === null || value === undefined || isNaN(value)) return "—";
   return (value * 100).toFixed(0);
@@ -152,6 +206,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     ? signal.domains_jsonb
     : signal.primary_domain ? [signal.primary_domain] : [];
 
+  const readiness = getOverallReadiness(scorePct);
+  const readinessStyle = STOPLIGHT[readiness.color];
+
   if (status === "published") return (
     <>
       <NavBar />
@@ -200,20 +257,10 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               {/* ── Source context ── */}
               {(signal.source_items ?? []).length > 0 && (
                 <div style={{
-                  background: "#fafafa",
-                  border: "1px solid #e6e6e6",
-                  borderRadius: "8px",
-                  padding: "16px",
-                  marginBottom: "24px",
+                  background: "#fafafa", border: "1px solid #e6e6e6",
+                  borderRadius: "8px", padding: "16px", marginBottom: "24px",
                 }}>
-                  <div style={{
-                    fontSize: "11px",
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    color: "#888",
-                    marginBottom: "12px",
-                    fontFamily: "var(--font-jakarta), sans-serif",
-                  }}>
+                  <div style={{ fontSize: "11px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#888", marginBottom: "12px", fontFamily: "var(--font-jakarta), sans-serif" }}>
                     Source Items
                   </div>
                   {signal.source_items.map((item, i) => (
@@ -223,13 +270,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                       borderBottom: i < signal.source_items.length - 1 ? "1px solid #ebebeb" : "none",
                     }}>
                       {item.title && (
-                        <div style={{
-                          fontFamily: "var(--font-jakarta), sans-serif",
-                          fontSize: "13px",
-                          fontWeight: 600,
-                          color: "#1a1a1a",
-                          marginBottom: "4px",
-                        }}>
+                        <div style={{ fontFamily: "var(--font-jakarta), sans-serif", fontSize: "13px", fontWeight: 600, color: "#1a1a1a", marginBottom: "4px" }}>
                           {item.url ? (
                             <a href={item.url} target="_blank" rel="noopener noreferrer"
                               style={{ color: "#1a1a1a", textDecoration: "underline", textDecorationColor: "#ccc" }}>
@@ -239,25 +280,12 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                         </div>
                       )}
                       {item.url && (
-                        <div style={{
-                          fontSize: "11px",
-                          color: "#888",
-                          marginBottom: item.snippet ? "4px" : "0",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          fontFamily: "var(--font-jakarta), sans-serif",
-                        }}>
+                        <div style={{ fontSize: "11px", color: "#888", marginBottom: item.snippet ? "4px" : "0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--font-jakarta), sans-serif" }}>
                           {item.url}
                         </div>
                       )}
                       {item.snippet && (
-                        <div style={{
-                          fontSize: "12px",
-                          color: "#555",
-                          lineHeight: 1.6,
-                          fontFamily: "var(--font-jakarta), sans-serif",
-                        }}>
+                        <div style={{ fontSize: "12px", color: "#555", lineHeight: 1.6, fontFamily: "var(--font-jakarta), sans-serif" }}>
                           {item.snippet}
                         </div>
                       )}
@@ -276,24 +304,13 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "0 0 16px" }}>
-                <button
-                  className="btn-light"
-                  onClick={handleDraft}
-                  disabled={drafting}
-                  style={{ fontSize: "12px" }}
-                >
+                <button className="btn-light" onClick={handleDraft} disabled={drafting} style={{ fontSize: "12px" }}>
                   {drafting ? "Drafting…" : body ? "↺ Redraft with AI" : "✦ Get AI Draft"}
                 </button>
-                {drafting && (
-                  <span style={{ fontSize: "12px", color: "var(--muted)" }}>Generating brief…</span>
-                )}
-                {draftError && (
-                  <span style={{ fontSize: "12px", color: "#c62828" }}>{draftError}</span>
-                )}
+                {drafting && <span style={{ fontSize: "12px", color: "var(--muted)" }}>Generating brief…</span>}
+                {draftError && <span style={{ fontSize: "12px", color: "#c62828" }}>{draftError}</span>}
                 {!body && !drafting && (
-                  <span style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "0.04em" }}>
-                    or write the brief manually below
-                  </span>
+                  <span style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "0.04em" }}>or write the brief manually below</span>
                 )}
               </div>
 
@@ -303,14 +320,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   placeholder="Write the brief here, or click Get AI Draft for a starting point."
-                  style={{
-                    minHeight: "460px",
-                    fontFamily: "monospace",
-                    fontSize: "13px",
-                    lineHeight: "1.7",
-                    opacity: drafting ? 0.5 : 1,
-                    transition: "opacity 0.2s",
-                  }}
+                  style={{ minHeight: "460px", fontFamily: "monospace", fontSize: "13px", lineHeight: "1.7", opacity: drafting ? 0.5 : 1, transition: "opacity 0.2s" }}
                 />
               </div>
 
@@ -319,11 +329,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               )}
 
               <div className="form-actions" style={{ marginTop: "8px" }}>
-                <button
-                  className="btn-gold"
-                  onClick={handlePublish}
-                  disabled={status === "saving" || !title.trim() || drafting}
-                >
+                <button className="btn-gold" onClick={handlePublish} disabled={status === "saving" || !title.trim() || drafting}>
                   {status === "saving" ? "Publishing…" : "Publish Brief →"}
                 </button>
                 <button className="btn-light" onClick={handleArchive}>Archive Signal</button>
@@ -338,6 +344,29 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 <div style={{ fontSize: "11px", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "16px" }}>
                   Signal Intelligence
                 </div>
+
+                {/* ── Overall readiness banner ── */}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: "10px",
+                  background: readiness.color === "green" ? "rgba(34,197,94,0.08)" : readiness.color === "yellow" ? "rgba(234,179,8,0.08)" : readiness.color === "red" ? "rgba(239,68,68,0.08)" : "#f5f5f5",
+                  border: `1px solid ${readinessStyle.border}22`,
+                  borderRadius: "8px", padding: "10px 14px", marginBottom: "18px",
+                }}>
+                  <span style={{
+                    width: "12px", height: "12px", borderRadius: "50%", flexShrink: 0,
+                    background: readinessStyle.bg,
+                    border: `1px solid ${readinessStyle.border}`,
+                    boxShadow: readiness.color !== "none" ? `0 0 6px ${readinessStyle.glow}` : "none",
+                  }} />
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: readiness.color === "green" ? "#166534" : readiness.color === "yellow" ? "#854d0e" : readiness.color === "red" ? "#991b1b" : "#555", fontFamily: "Cinzel, serif", letterSpacing: "0.08em" }}>
+                      {readiness.label}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>{readiness.desc}</div>
+                  </div>
+                </div>
+
+                {/* Signal score */}
                 <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "4px" }}>
                   <span style={{ fontFamily: "Cinzel, serif", fontSize: "42px", fontWeight: 600, color: "var(--gold)", lineHeight: 1 }}>
                     {scorePct !== null ? scorePct : "—"}
@@ -362,44 +391,62 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   ))}
                 </div>
 
-                {/* Domain score bars */}
+                {/* Domain score bars with stoplights */}
                 <div style={{ marginBottom: "18px" }}>
                   {[
                     { label: "Power", value: signal.power_score, cls: "power" },
                     { label: "Money", value: signal.money_score, cls: "money" },
                     { label: "Rules", value: signal.rules_score, cls: "rules" },
                   ].map(({ label, value, cls }) => (
-                    <div key={label} className="domain-bar-row">
+                    <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
                       <span className="domain-bar-label">{label}</span>
-                      <div className="domain-bar-track">
+                      <div className="domain-bar-track" style={{ flex: 1 }}>
                         <div className={`domain-bar-fill ${cls}`}
                           style={{ width: value !== null && !isNaN(value) ? `${Math.min((value / 5) * 100, 100)}%` : "0%" }} />
                       </div>
-                      <span className="domain-bar-value">
+                      <span className="domain-bar-value" style={{ width: "28px" }}>
                         {value !== null && !isNaN(value) ? value.toFixed(1) : "—"}
                       </span>
+                      <StoplightBubble color={getStoplight("domain", value)} />
                     </div>
                   ))}
                 </div>
 
-                {/* Score breakdown */}
+                {/* Score breakdown with stoplights */}
                 <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", marginBottom: "14px" }}>
                   <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "10px" }}>
                     Score Breakdown
                   </div>
                   {[
-                    { label: "Evidence", value: signal.evidence_score },
-                    { label: "Impact", value: signal.impact_score },
-                    { label: "Novelty", value: signal.novelty_score },
-                    { label: "Anomaly", value: signal.anomaly_score },
-                    { label: "Credibility", value: signal.credibility_score },
-                    { label: "Corroboration", value: signal.corroboration_score },
-                  ].map(({ label, value }) => (
-                    <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "5px" }}>
+                    { label: "Evidence",      value: signal.evidence_score,      key: "evidence" },
+                    { label: "Impact",         value: signal.impact_score,         key: "impact" },
+                    { label: "Novelty",        value: signal.novelty_score,        key: "novelty" },
+                    { label: "Anomaly",        value: signal.anomaly_score,        key: "anomaly" },
+                    { label: "Credibility",    value: signal.credibility_score,    key: "credibility" },
+                    { label: "Corroboration",  value: signal.corroboration_score,  key: "corroboration" },
+                  ].map(({ label, value, key }) => (
+                    <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", marginBottom: "6px" }}>
                       <span style={{ color: "var(--muted)" }}>{label}</span>
-                      <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
-                        {fmt(value)}
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums", minWidth: "24px", textAlign: "right" }}>
+                          {fmt(value)}
+                        </span>
+                        <StoplightBubble color={getStoplight(key, value)} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Stoplight legend */}
+                <div style={{ background: "#f9f9f9", borderRadius: "6px", padding: "8px 12px", marginBottom: "14px", display: "flex", gap: "14px", flexWrap: "wrap" }}>
+                  {[
+                    { color: "green" as const, label: "Publish" },
+                    { color: "yellow" as const, label: "Consider" },
+                    { color: "red" as const, label: "Hold" },
+                  ].map(({ color, label }) => (
+                    <div key={color} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                      <StoplightBubble color={color} />
+                      <span style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "0.06em" }}>{label}</span>
                     </div>
                   ))}
                 </div>
@@ -413,11 +460,11 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   )}
                   <div>
                     Sources: <strong style={{ color: "var(--ink)" }}>
-  {signal.source_items?.length > 0
-    ? [...new Set(signal.source_items.map((s: SourceItem) => s.source_name).filter(Boolean))].join(", ")
-    : `${signal.item_count} item${signal.item_count !== 1 ? "s" : ""}`
-  }
-</strong>
+                      {signal.source_items?.length > 0
+                        ? [...new Set(signal.source_items.map((s: SourceItem) => s.source_name).filter(Boolean))].join(", ")
+                        : `${signal.item_count} item${signal.item_count !== 1 ? "s" : ""}`
+                      }
+                    </strong>
                   </div>
                 </div>
 

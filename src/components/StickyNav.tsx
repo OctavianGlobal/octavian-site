@@ -84,8 +84,7 @@ export default function StickyNav() {
   }
 
   const initial = displayName ? displayName.charAt(0).toUpperCase() : null;
-  const isDashboard = pathname.startsWith("/dashboard");
-  const showBrand = scrolled || isDashboard;
+const showBrand = scrolled;
 
   return (
     <div style={{

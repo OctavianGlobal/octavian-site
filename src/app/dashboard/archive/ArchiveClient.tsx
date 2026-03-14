@@ -83,9 +83,8 @@ export default function ArchiveClient({
         <div className="container" style={{ display: "flex", gap: "24px", flexWrap: "nowrap", alignItems: "center", overflowX: "auto" }}>
           {[
             { label: "Domain Scores", key: "canViewDomainScores" as const },
-            { label: "Signal Score", key: "canViewSignalScore" as const },
-            { label: "Confidence", key: "canViewConfidence" as const },
-            { label: "Archive", key: "canSearchArchive" as const },
+            { label: "Signal Score",  key: "canViewSignalScore" as const },
+            { label: "Confidence",    key: "canViewConfidence" as const },
           ].map(({ label, key }) => (
             <div key={key} style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
               <span style={{
@@ -126,7 +125,7 @@ export default function ArchiveClient({
           {restricted ? (
             <div style={{ padding: "64px 0", textAlign: "center" }}>
               <div style={{ color: "var(--muted)", fontSize: "14px", marginBottom: "16px" }}>Archive access requires Analyst tier or higher.</div>
-              <Link href="/upgrade" className="btn-gold">Upgrade to unlock →</Link>
+              <Link href="/tiers" className="btn-gold">View Intelligence Tiers →</Link>
             </div>
           ) : (
             <>

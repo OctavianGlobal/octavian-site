@@ -132,7 +132,7 @@ export default function StickyNav() {
             <div style={{
               position: "absolute", top: "calc(100% + 10px)", right: 0,
               background: "#0a0a0a", border: "1px solid rgba(212,175,55,0.2)",
-              minWidth: "200px", zIndex: 200,
+              minWidth: "220px", zIndex: 200,
             }}>
               {!loadingAuth && (
                 <>
@@ -163,7 +163,7 @@ export default function StickyNav() {
                         </div>
                       </div>
 
-                      {/* ── Main nav — Signal Queue → Archived Signals → Published Briefs ── */}
+                      {/* ── Main nav ── */}
                       <NavLink href="/dashboard" label="Signal Queue" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
                       <NavLink href="/dashboard/archive" label="Archived Signals" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
                       <NavLink href="/dashboard/published" label="Published Briefs" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
@@ -212,7 +212,11 @@ export default function StickyNav() {
                       </button>
                     </>
                   ) : (
-                    <NavLink href="/login" label="Sign In" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                    <>
+                      {/* ── Logged-out nav ── */}
+                      <NavLink href="/tiers" label="Intelligence Tiers" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                      <NavLink href="/login" label="Sign In" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                    </>
                   )}
                 </>
               )}

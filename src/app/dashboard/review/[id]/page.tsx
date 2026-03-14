@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useCallback, use } from "react";
+import { useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
 
 interface SourceItem {
@@ -47,14 +48,9 @@ interface SocialTeasers {
 }
 
 const DOMAIN_COLORS: Record<string, string> = {
-  POWER: "#e53935",
-  MONEY: "#43a047",
-  RULES: "#1e88e5",
-  ENVIRONMENT: "#00897b",
-  TECHNOLOGY: "#8e24aa",
+  POWER: "#e53935", MONEY: "#43a047", RULES: "#1e88e5",
+  ENVIRONMENT: "#00897b", TECHNOLOGY: "#8e24aa",
 };
-
-// ── Source tier logic ─────────────────────────────────────────────────────────
 
 const SOURCE_TIER: Record<string, { label: string; color: string; bg: string }> = {
   institution:   { label: "1st Tier", color: "#166534", bg: "#f0fdf4" },
@@ -70,8 +66,6 @@ function getTier(sourceType: string | null) {
   return SOURCE_TIER[sourceType] ?? null;
 }
 
-// ── Stoplight logic ───────────────────────────────────────────────────────────
-
 type StoplightColor = "green" | "yellow" | "red" | "none";
 
 const STOPLIGHT: Record<StoplightColor, { bg: string; border: string; glow: string }> = {
@@ -82,7 +76,6 @@ const STOPLIGHT: Record<StoplightColor, { bg: string; border: string; glow: stri
 };
 
 const THRESHOLDS: Record<string, { green: number; yellow: number }> = {
-  signal:        { green: 0.65, yellow: 0.40 },
   evidence:      { green: 0.65, yellow: 0.40 },
   impact:        { green: 0.65, yellow: 0.40 },
   novelty:       { green: 0.55, yellow: 0.35 },
@@ -127,6 +120,7 @@ function fmt(value: number | null | undefined): string {
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const id = resolvedParams.id;
+  const router = useRouter();
 
   const [signal, setSignal] = useState<SignalReviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,7 +132,8 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const [showTeasers, setShowTeasers] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState("");
-  const [status, setStatus] = useState<"idle" | "saving" | "published" | "archived" | "error">("idle");
+  const [saving, setSaving] = useState(false);
+  const [publishError, setPublishError] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -171,6 +166,18 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       if (data.draft) setBody(data.draft);
       if (data.teasers) { setTeasers(data.teasers); setShowTeasers(true); }
       if (data.validation_query) setValidationQuery(data.validation_query);
+
+      // ── Auto-prepend source or domain to title ──
+      const primarySource = signal.source_items?.[0]?.source_name;
+      const prefix = primarySource ?? signal.primary_domain ?? null;
+      if (prefix) {
+        setTitle(prev => {
+          if (prev && !prev.includes(": ")) {
+            return `${prefix}: ${prev}`;
+          }
+          return prev;
+        });
+      }
     } catch {
       setDraftError("Draft failed. Try again.");
     } finally {
@@ -179,8 +186,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   }, [signal, id]);
 
   async function handlePublish() {
-    if (!title.trim()) return;
-    setStatus("saving");
+    if (!title.trim() || saving) return;
+    setSaving(true);
+    setPublishError("");
     try {
       const res = await fetch("/api/signals/publish", {
         method: "POST",
@@ -192,12 +200,16 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
         }),
       });
       if (!res.ok) throw new Error("Publish failed");
-      setStatus("published");
-    } catch { setStatus("error"); }
+      router.push("/dashboard");
+    } catch {
+      setPublishError("Publish failed. Please try again.");
+      setSaving(false);
+    }
   }
 
   async function handleArchive() {
-    if (!confirm("Archive this signal? It will be removed from the queue.")) return;
+    if (saving) return;
+    setSaving(true);
     try {
       const res = await fetch("/api/signals/archive", {
         method: "POST",
@@ -205,8 +217,11 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
         body: JSON.stringify({ signal_id: id }),
       });
       if (!res.ok) throw new Error("Archive failed");
-      setStatus("archived");
-    } catch { alert("Archive failed. Please try again."); }
+      router.push("/dashboard");
+    } catch {
+      alert("Archive failed. Please try again.");
+      setSaving(false);
+    }
   }
 
   if (loading) return (
@@ -239,43 +254,11 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const readiness = getOverallReadiness(scorePct);
   const readinessStyle = STOPLIGHT[readiness.color];
 
-  // Unique sources with dedup
   const uniqueSources = [...new Map(
     (signal.source_items ?? [])
       .filter((s: SourceItem) => s.source_name)
       .map((s: SourceItem) => [s.source_name, s])
   ).values()];
-
-  if (status === "published") return (
-    <>
-      <NavBar />
-      <div style={{ background: "var(--paper)", minHeight: "calc(100vh - 120px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "12px", padding: "40px", textAlign: "center", maxWidth: "480px" }}>
-          <div style={{ fontFamily: "Cinzel, serif", fontSize: "22px", color: "#166534", marginBottom: "12px" }}>Brief Published</div>
-          <p style={{ color: "#166534", margin: "0 0 24px" }}>The brief is now live on the public site.</p>
-          <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
-            <Link className="btn" href="/briefs">View Briefs</Link>
-            <Link className="btn-light" href="/dashboard">Back to Queue</Link>
-          </div>
-        </div>
-      </div>
-      <Footer />
-    </>
-  );
-
-  if (status === "archived") return (
-    <>
-      <NavBar />
-      <div style={{ background: "var(--paper)", minHeight: "calc(100vh - 120px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ background: "#fff8f0", border: "1px solid #fed7aa", borderRadius: "12px", padding: "40px", textAlign: "center", maxWidth: "480px" }}>
-          <div style={{ fontFamily: "Cinzel, serif", fontSize: "22px", color: "#92400e", marginBottom: "12px" }}>Signal Archived</div>
-          <p style={{ color: "#92400e", margin: "0 0 24px" }}>This signal has been removed from the queue.</p>
-          <Link className="btn-light" href="/dashboard">Back to Queue</Link>
-        </div>
-      </div>
-      <Footer />
-    </>
-  );
 
   return (
     <>
@@ -306,8 +289,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                       {item.title && (
                         <div style={{ fontFamily: "var(--font-jakarta), sans-serif", fontSize: "13px", fontWeight: 600, color: "#1a1a1a", marginBottom: "4px" }}>
                           {item.url ? (
-                            <a href={item.url} target="_blank" rel="noopener noreferrer"
-                              style={{ color: "#1a1a1a", textDecoration: "underline", textDecorationColor: "#ccc" }}>
+                            <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ color: "#1a1a1a", textDecoration: "underline", textDecorationColor: "#ccc" }}>
                               {item.title}
                             </a>
                           ) : item.title}
@@ -399,34 +381,52 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   )}
                 </div>
               )}
+            </div>
 
-              {status === "error" && (
-                <div className="auth-error" style={{ marginBottom: "12px" }}>Publish failed. Please try again.</div>
-              )}
+            {/* ── Right: action buttons + intelligence panel ── */}
+            <div style={{ position: "sticky", top: "24px" }}>
 
-              {/* ── Action buttons ABOVE score panel ── */}
-              <div className="form-actions" style={{ marginTop: "8px" }}>
+              {/* ── Action buttons — above score panel ── */}
+              <div style={{ marginBottom: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                {publishError && (
+                  <div style={{ fontSize: "12px", color: "#c62828", fontFamily: "var(--font-jakarta), sans-serif", padding: "8px 12px", background: "#fff5f5", border: "1px solid #fecaca", borderRadius: "6px" }}>
+                    {publishError}
+                  </div>
+                )}
                 <button
                   className="btn-gold"
                   onClick={handlePublish}
-                  disabled={status === "saving" || !title.trim() || drafting}
+                  disabled={saving || !title.trim() || drafting}
+                  style={{ width: "100%", padding: "12px 20px", fontSize: "13px" }}
                 >
-                  {status === "saving" ? "Publishing…" : "Publish Brief →"}
+                  {saving ? "Publishing…" : "Publish Brief →"}
                 </button>
-                <button className="btn-light" onClick={handleArchive}>Archive Signal</button>
-                <Link href="/dashboard" className="btn-light">Cancel</Link>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    className="btn-light"
+                    onClick={handleArchive}
+                    disabled={saving}
+                    style={{ flex: 1, padding: "10px", fontSize: "12px" }}
+                  >
+                    Archive Signal
+                  </button>
+                  <Link
+                    href="/dashboard"
+                    className="btn-light"
+                    style={{ flex: 1, padding: "10px", fontSize: "12px", textAlign: "center", display: "block" }}
+                  >
+                    Cancel
+                  </Link>
+                </div>
               </div>
-            </div>
 
-            {/* ── Right: intelligence panel ── */}
-            <div style={{ position: "sticky", top: "24px" }}>
+              {/* ── Intelligence panel ── */}
               <div className="card" style={{ padding: "22px" }}>
-
                 <div style={{ fontSize: "11px", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "16px" }}>
                   Signal Intelligence
                 </div>
 
-                {/* ── Overall readiness banner ── */}
+                {/* Overall readiness */}
                 <div style={{
                   display: "flex", alignItems: "center", gap: "10px",
                   background: readiness.color === "green" ? "rgba(34,197,94,0.08)" : readiness.color === "yellow" ? "rgba(234,179,8,0.08)" : readiness.color === "red" ? "rgba(239,68,68,0.08)" : "#f5f5f5",
@@ -439,7 +439,8 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                     boxShadow: readiness.color !== "none" ? `0 0 6px ${readinessStyle.glow}` : "none",
                   }} />
                   <div>
-                    <div style={{ fontSize: "13px", fontWeight: 700, fontFamily: "Cinzel, serif", letterSpacing: "0.08em",
+                    <div style={{
+                      fontSize: "13px", fontWeight: 700, fontFamily: "Cinzel, serif", letterSpacing: "0.08em",
                       color: readiness.color === "green" ? "#166534" : readiness.color === "yellow" ? "#854d0e" : readiness.color === "red" ? "#991b1b" : "#555",
                     }}>
                       {readiness.label}
@@ -473,7 +474,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   ))}
                 </div>
 
-                {/* Domain score bars with stoplights */}
+                {/* Domain bars */}
                 <div style={{ marginBottom: "18px" }}>
                   {[
                     { label: "Power", value: signal.power_score, cls: "power" },
@@ -483,8 +484,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                     <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
                       <span className="domain-bar-label">{label}</span>
                       <div className="domain-bar-track" style={{ flex: 1 }}>
-                        <div className={`domain-bar-fill ${cls}`}
-                          style={{ width: value !== null && !isNaN(value) ? `${Math.min((value / 5) * 100, 100)}%` : "0%" }} />
+                        <div className={`domain-bar-fill ${cls}`} style={{ width: value !== null && !isNaN(value) ? `${Math.min((value / 5) * 100, 100)}%` : "0%" }} />
                       </div>
                       <span className="domain-bar-value" style={{ width: "28px" }}>
                         {value !== null && !isNaN(value) ? value.toFixed(1) : "—"}
@@ -494,32 +494,30 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   ))}
                 </div>
 
-                {/* Score breakdown with stoplights */}
+                {/* Score breakdown */}
                 <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", marginBottom: "14px" }}>
                   <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "10px" }}>
                     Score Breakdown
                   </div>
                   {[
-                    { label: "Evidence",     value: signal.evidence_score,     key: "evidence" },
-                    { label: "Impact",       value: signal.impact_score,       key: "impact" },
-                    { label: "Novelty",      value: signal.novelty_score,      key: "novelty" },
-                    { label: "Anomaly",      value: signal.anomaly_score,      key: "anomaly" },
-                    { label: "Credibility",  value: signal.credibility_score,  key: "credibility" },
+                    { label: "Evidence",      value: signal.evidence_score,     key: "evidence" },
+                    { label: "Impact",        value: signal.impact_score,       key: "impact" },
+                    { label: "Novelty",       value: signal.novelty_score,      key: "novelty" },
+                    { label: "Anomaly",       value: signal.anomaly_score,      key: "anomaly" },
+                    { label: "Credibility",   value: signal.credibility_score,  key: "credibility" },
                     { label: "Corroboration", value: signal.corroboration_score, key: "corroboration" },
                   ].map(({ label, value, key }) => (
                     <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", marginBottom: "6px" }}>
                       <span style={{ color: "var(--muted)" }}>{label}</span>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums", minWidth: "24px", textAlign: "right" }}>
-                          {fmt(value)}
-                        </span>
+                        <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums", minWidth: "24px", textAlign: "right" }}>{fmt(value)}</span>
                         <StoplightBubble color={getStoplight(key, value)} />
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Stoplight legend */}
+                {/* Legend */}
                 <div style={{ background: "#f9f9f9", borderRadius: "6px", padding: "8px 12px", marginBottom: "14px", display: "flex", gap: "14px", flexWrap: "wrap" }}>
                   {[
                     { color: "green" as const, label: "Publish" },
@@ -533,7 +531,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   ))}
                 </div>
 
-                {/* Meta — sources with tier badges */}
+                {/* Sources with tier badges */}
                 <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>
                   {signal.ai_confidence !== null && !isNaN(signal.ai_confidence) && (
                     <div style={{ marginBottom: "8px" }}>
@@ -550,11 +548,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                             <div key={s.source_name} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                               <strong style={{ color: "var(--ink)", fontSize: "12px" }}>{s.source_name}</strong>
                               {tier && (
-                                <span style={{
-                                  fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em",
-                                  padding: "2px 6px", borderRadius: "4px",
-                                  background: tier.bg, color: tier.color,
-                                }}>
+                                <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", padding: "2px 6px", borderRadius: "4px", background: tier.bg, color: tier.color }}>
                                   {tier.label}
                                 </span>
                               )}
@@ -563,9 +557,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                         })}
                       </div>
                     ) : (
-                      <strong style={{ color: "var(--ink)" }}>
-                        {signal.item_count} item{signal.item_count !== 1 ? "s" : ""}
-                      </strong>
+                      <strong style={{ color: "var(--ink)" }}>{signal.item_count} item{signal.item_count !== 1 ? "s" : ""}</strong>
                     )}
                   </div>
                 </div>
@@ -575,9 +567,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", marginBottom: "14px" }}>
                     <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "8px" }}>Entities</div>
                     <div className="queue-tags">
-                      {(signal.entity_names ?? []).map((e) => (
-                        <span key={e} className="tag-pill">{e}</span>
-                      ))}
+                      {(signal.entity_names ?? []).map((e) => <span key={e} className="tag-pill">{e}</span>)}
                     </div>
                   </div>
                 )}
@@ -587,15 +577,10 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   <div style={{ borderTop: "1px solid #eee", paddingTop: "14px" }}>
                     <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "8px" }}>Tags</div>
                     <div className="queue-tags">
-                      {(signal.tag_names ?? []).map((t) => (
-                        <span key={t} className="tag-pill" style={{ background: "#f5f5f5" }}>
-                          {t.replace(/_/g, " ")}
-                        </span>
-                      ))}
+                      {(signal.tag_names ?? []).map((t) => <span key={t} className="tag-pill" style={{ background: "#f5f5f5" }}>{t.replace(/_/g, " ")}</span>)}
                     </div>
                   </div>
                 )}
-
               </div>
             </div>
 

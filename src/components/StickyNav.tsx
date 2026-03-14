@@ -236,9 +236,9 @@ export default function StickyNav() {
                       </div>
 
                       {/* Main nav */}
-                      <NavLink href="/dashboard" label="Dashboard" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                      <NavLink href="/dashboard" label="Signal Queue" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
                       <NavLink href="/dashboard/published" label="Published Briefs" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
-                      <NavLink href="/dashboard/archive" label="Archive" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                      <NavLink href="/dashboard/archive" label="Archived Briefs" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
                       <NavLink href="/settings" label="Settings" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
 
                       {/* Admin section */}

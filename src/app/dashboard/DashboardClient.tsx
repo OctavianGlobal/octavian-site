@@ -182,9 +182,7 @@ export default function DashboardClient({
       {/* ── Top bar ── */}
       <div style={{ background: "var(--black)", padding: "14px 0", borderBottom: "1px solid #222", marginTop: "62px" }}>
         <div className="container" style={{ display: "flex", alignItems: "center", gap: "18px" }}>
-          <span style={{ color: "rgba(212,175,55,0.6)", fontSize: "13px", letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "Cinzel, serif" }}>
-            Signal Dashboard
-          </span>
+          
           <div style={{ flex: 1 }} />
           {isEditor && (
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -239,9 +237,9 @@ export default function DashboardClient({
               </span>
             </div>
           ))}
-          <div style={{ marginLeft: "auto", fontSize: "12px", color: "rgba(255,255,255,0.2)", letterSpacing: "0.06em" }}>
+          <div style={{ marginLeft: "auto", fontSize: "12px", color: "rgba(255,255,255,0.55)", letterSpacing: "0.06em" }}>
             ARCHIVE:{" "}
-            <span style={{ color: "rgba(255,255,255,0.4)" }}>
+            <span style={{ color: "rgba(255,255,255,0.75)" }}>
               {perms.archiveDaysBack === "unlimited" ? "Unlimited" : perms.archiveDaysBack === 0 ? "None" : `${perms.archiveDaysBack} days`}
             </span>
           </div>

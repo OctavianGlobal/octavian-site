@@ -249,7 +249,7 @@ export default function DashboardClient({
           {isEditor && (
             <div style={{
               background: "#fafafa", border: "1px solid var(--line)", borderRadius: "8px",
-              padding: "14px 18px", marginBottom: "20px",
+              padding: "14px 18px", marginBottom: "12px",
               display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap",
             }}>
               <span style={{ fontSize: "11px", letterSpacing: "0.10em", textTransform: "uppercase", color: "#888", fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 600, flexShrink: 0 }}>
@@ -283,6 +283,11 @@ export default function DashboardClient({
                 <span style={{ fontSize: "12px", color: "#166534", fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 600 }}>✓ {bulkDone} archived</span>
               )}
             </div>
+          )}
+
+          {/* ── Advanced Archive Tool ── */}
+          {isEditor && (
+            <AdvancedArchiveTool onComplete={() => { setBulkRefreshKey(k => k + 1); router.refresh(); }} />
           )}
 
           {/* ── Filters + sort ── */}
@@ -336,8 +341,6 @@ export default function DashboardClient({
 
                     {expanded === sig.id && perms.canViewDomainScores && (
                       <div style={{ marginTop: "8px" }}>
-
-                        {/* ── Snippet ── */}
                         {sig.primary_snippet && (
                           <p style={{
                             fontSize: "12px", color: "#444", lineHeight: 1.6,
@@ -346,8 +349,6 @@ export default function DashboardClient({
                             {sig.primary_snippet.slice(0, 220)}{sig.primary_snippet.length > 220 ? "…" : ""}
                           </p>
                         )}
-
-                        {/* ── Primary source ── */}
                         {sig.primary_source_name && (
                           <div style={{
                             fontSize: "11px", color: "var(--muted)", marginBottom: "10px",
@@ -357,8 +358,6 @@ export default function DashboardClient({
                             Source: <strong style={{ color: "var(--ink)" }}>{sig.primary_source_name}</strong>
                           </div>
                         )}
-
-                        {/* ── Domain bars ── */}
                         {[
                           { label: "Power", value: sig.power_score },
                           { label: "Money", value: sig.money_score },
@@ -433,5 +432,269 @@ export default function DashboardClient({
 
       <Footer />
     </>
+  );
+}
+
+// ── Advanced Archive Tool Component ──────────────────────────────────────────
+
+function AdvancedArchiveTool({ onComplete }: { onComplete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<string>("below_score");
+  const [score, setScore] = useState("40");
+  const [date, setDate] = useState("");
+  const [domain, setDomain] = useState("POWER");
+  const [preview, setPreview] = useState<number | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [done, setDone] = useState<number | null>(null);
+  const [error, setError] = useState("");
+
+  const MODE_LABELS: Record<string, string> = {
+    below_score: "Below score threshold",
+    null_scores: "Null scores only",
+    older_than: "Older than date",
+    domain_below_score: "Domain + score",
+    nuclear: "ALL candidates",
+  };
+
+  function resetState() {
+    setPreview(null);
+    setConfirmed(false);
+    setDone(null);
+    setError("");
+  }
+
+  async function handlePreview() {
+    setPreviewing(true);
+    setPreview(null);
+    setError("");
+    setConfirmed(false);
+    try {
+      const params = new URLSearchParams({ mode });
+      if (mode === "below_score" || mode === "domain_below_score") params.set("score", score);
+      if (mode === "older_than") params.set("date", date);
+      if (mode === "domain_below_score") params.set("domain", domain);
+      const res = await fetch(`/api/signals/advanced-archive?${params.toString()}`);
+      const data = await res.json();
+      setPreview(data.count ?? 0);
+    } catch {
+      setError("Preview failed. Try again.");
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  async function handleArchive() {
+    if (!confirmed) return;
+    setRunning(true);
+    setError("");
+    try {
+      const body: any = { mode, confirmed: true };
+      if (mode === "below_score" || mode === "domain_below_score") body.score = parseFloat(score);
+      if (mode === "older_than") body.date = date;
+      if (mode === "domain_below_score") body.domain = domain;
+      const res = await fetch("/api/signals/advanced-archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDone(data.archived_count ?? 0);
+        setPreview(null);
+        setConfirmed(false);
+        onComplete();
+      } else {
+        setError(data.error ?? "Archive failed.");
+      }
+    } catch {
+      setError("Archive failed. Try again.");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  const isNuclear = mode === "nuclear";
+
+  return (
+    <div style={{
+      background: "#fafafa", border: "1px solid var(--line)", borderRadius: "8px",
+      marginBottom: "20px", overflow: "hidden",
+    }}>
+      {/* ── Toggle ── */}
+      <button
+        onClick={() => { setOpen(o => !o); resetState(); }}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "12px 18px", background: "none", border: "none", cursor: "pointer",
+          fontFamily: "var(--font-jakarta), sans-serif",
+        }}
+      >
+        <span style={{ fontSize: "11px", letterSpacing: "0.10em", textTransform: "uppercase", color: "#888", fontWeight: 600 }}>
+          ⚡ Advanced Archive
+        </span>
+        <span style={{ fontSize: "11px", color: "#aaa" }}>{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 18px 18px", borderTop: "1px solid var(--line)" }}>
+
+          {/* ── Mode selector ── */}
+          <div style={{ marginTop: "14px", marginBottom: "12px" }}>
+            <label style={{ fontSize: "11px", letterSpacing: "0.08em", textTransform: "uppercase", color: "#888", display: "block", marginBottom: "6px", fontFamily: "var(--font-jakarta), sans-serif" }}>
+              Archive Mode
+            </label>
+            <select
+              value={mode}
+              onChange={(e) => { setMode(e.target.value); resetState(); }}
+              style={{ width: "100%", padding: "8px 10px", border: "1px solid #d0d0d0", borderRadius: "6px", fontSize: "13px", fontFamily: "var(--font-jakarta), sans-serif", color: "#1a1a1a", background: "#fff" }}
+            >
+              {Object.entries(MODE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* ── Parameters ── */}
+          {mode === "below_score" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+              <span style={{ fontSize: "13px", color: "#555", fontFamily: "var(--font-jakarta), sans-serif" }}>Score below</span>
+              <input
+                type="number" min="1" max="100" value={score}
+                onChange={(e) => { setScore(e.target.value); resetState(); }}
+                style={{ width: "70px", padding: "6px 8px", border: "1px solid #d0d0d0", borderRadius: "6px", fontSize: "13px", color: "#1a1a1a", background: "#fff", textAlign: "center" }}
+              />
+            </div>
+          )}
+
+          {mode === "older_than" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+              <span style={{ fontSize: "13px", color: "#555", fontFamily: "var(--font-jakarta), sans-serif" }}>Older than</span>
+              <input
+                type="date" value={date}
+                onChange={(e) => { setDate(e.target.value); resetState(); }}
+                style={{ padding: "6px 10px", border: "1px solid #d0d0d0", borderRadius: "6px", fontSize: "13px", color: "#1a1a1a", background: "#fff" }}
+              />
+            </div>
+          )}
+
+          {mode === "domain_below_score" && (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
+              <select
+                value={domain}
+                onChange={(e) => { setDomain(e.target.value); resetState(); }}
+                style={{ padding: "6px 10px", border: "1px solid #d0d0d0", borderRadius: "6px", fontSize: "13px", color: "#1a1a1a", background: "#fff" }}
+              >
+                {["POWER", "MONEY", "RULES", "ENVIRONMENT", "TECHNOLOGY"].map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              <span style={{ fontSize: "13px", color: "#555", fontFamily: "var(--font-jakarta), sans-serif" }}>below score</span>
+              <input
+                type="number" min="1" max="100" value={score}
+                onChange={(e) => { setScore(e.target.value); resetState(); }}
+                style={{ width: "70px", padding: "6px 8px", border: "1px solid #d0d0d0", borderRadius: "6px", fontSize: "13px", color: "#1a1a1a", background: "#fff", textAlign: "center" }}
+              />
+            </div>
+          )}
+
+          {isNuclear && (
+            <div style={{ background: "#fff5f5", border: "1px solid #fecaca", borderRadius: "6px", padding: "10px 14px", marginBottom: "12px" }}>
+              <span style={{ fontSize: "12px", color: "#991b1b", fontWeight: 600, fontFamily: "var(--font-jakarta), sans-serif" }}>
+                ⚠ This will archive ALL candidate signals regardless of score or date.
+              </span>
+            </div>
+          )}
+
+          {mode === "null_scores" && (
+            <div style={{ background: "#fefce8", border: "1px solid #fde047", borderRadius: "6px", padding: "10px 14px", marginBottom: "12px" }}>
+              <span style={{ fontSize: "12px", color: "#854d0e", fontFamily: "var(--font-jakarta), sans-serif" }}>
+                Archives all candidates with no signal score (unscored by pipeline).
+              </span>
+            </div>
+          )}
+
+          {/* ── Preview button ── */}
+          <button
+            onClick={handlePreview}
+            disabled={previewing || (mode === "older_than" && !date)}
+            style={{
+              padding: "7px 16px", fontSize: "12px", fontFamily: "inherit",
+              background: "#1a1a1a", color: previewing ? "#555" : "#D4AF37",
+              border: "1px solid #333", borderRadius: "6px",
+              cursor: previewing || (mode === "older_than" && !date) ? "default" : "pointer",
+              fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
+              marginBottom: "12px",
+            }}
+          >
+            {previewing ? "Previewing…" : "Preview"}
+          </button>
+
+          {/* ── Preview result + confirmation ── */}
+          {preview !== null && (
+            <div style={{ marginBottom: "12px" }}>
+              <div style={{
+                padding: "12px 14px", borderRadius: "6px", marginBottom: "12px",
+                background: preview === 0 ? "#f0fdf4" : isNuclear ? "#fff5f5" : "#fefce8",
+                border: `1px solid ${preview === 0 ? "#bbf7d0" : isNuclear ? "#fecaca" : "#fde047"}`,
+              }}>
+                <span style={{ fontSize: "13px", fontWeight: 600, fontFamily: "var(--font-jakarta), sans-serif", color: preview === 0 ? "#166534" : isNuclear ? "#991b1b" : "#854d0e" }}>
+                  {preview === 0
+                    ? "✓ No signals match — nothing to archive"
+                    : `${preview} signal${preview !== 1 ? "s" : ""} will be archived`}
+                </span>
+              </div>
+
+              {preview > 0 && (
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={confirmed}
+                    onChange={(e) => setConfirmed(e.target.checked)}
+                    style={{ marginTop: "2px", width: "16px", height: "16px", cursor: "pointer", flexShrink: 0 }}
+                  />
+                  <span style={{ fontSize: "12px", color: "#555", fontFamily: "var(--font-jakarta), sans-serif", lineHeight: 1.5 }}>
+                    I understand this will permanently archive {preview} signal{preview !== 1 ? "s" : ""} and this action cannot be undone.
+                  </span>
+                </label>
+              )}
+            </div>
+          )}
+
+          {/* ── Execute button ── */}
+          {preview !== null && preview > 0 && (
+            <button
+              onClick={handleArchive}
+              disabled={!confirmed || running}
+              style={{
+                padding: "8px 20px", fontSize: "12px", fontFamily: "inherit",
+                background: confirmed ? (isNuclear ? "#991b1b" : "#1a1a1a") : "#e5e7eb",
+                color: confirmed ? (isNuclear ? "#ffffff" : "#D4AF37") : "#9ca3af",
+                border: `1px solid ${confirmed ? (isNuclear ? "#7f1d1d" : "#333") : "#d1d5db"}`,
+                borderRadius: "6px",
+                cursor: !confirmed || running ? "default" : "pointer",
+                fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase",
+                transition: "all 0.15s",
+              }}
+            >
+              {running ? "Archiving…" : isNuclear ? "⚠ Archive ALL" : "Archive"}
+            </button>
+          )}
+
+          {/* ── Done / error ── */}
+          {done !== null && (
+            <div style={{ marginTop: "10px", fontSize: "12px", color: "#166534", fontWeight: 600, fontFamily: "var(--font-jakarta), sans-serif" }}>
+              ✓ {done} signal{done !== 1 ? "s" : ""} archived successfully
+            </div>
+          )}
+          {error && (
+            <div style={{ marginTop: "10px", fontSize: "12px", color: "#991b1b", fontFamily: "var(--font-jakarta), sans-serif" }}>
+              {error}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

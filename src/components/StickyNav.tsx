@@ -241,32 +241,32 @@ const showBrand = scrolled;
                       <NavLink href="/settings" label="Settings" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
 
                       {/* Admin section */}
-                      {(isAdmin || isEditor) && (
-                        <>
-                          <div style={{
-                            padding: "8px 18px 4px",
-                            fontSize: "10px",
-                            letterSpacing: "0.18em",
-                            textTransform: "uppercase",
-                            color: "rgba(212,175,55,0.45)",
-                            borderTop: "1px solid rgba(212,175,55,0.12)",
-                            marginTop: "4px",
-                            fontFamily: "Cinzel, serif",
-                          }}>
-                            Admin
-                          </div>
-                          {isAdmin && (
-                            <>
-                              <NavLink href="/dashboard/sources" label="Sources" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
-                              <NavLink href="/dashboard/users" label="Users" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
-                            </>
-                          )}
-                          {isEditor && (
-                            <NavLink href="/dashboard/sources" label="Pipeline Health" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
-                          )}
-                        </>
-                      )}
-
+{(isAdmin || isEditor) && (
+  <>
+    <div style={{
+      padding: "8px 18px 4px",
+      fontSize: "10px",
+      letterSpacing: "0.18em",
+      textTransform: "uppercase",
+      color: "rgba(212,175,55,0.45)",
+      borderTop: "1px solid rgba(212,175,55,0.12)",
+      marginTop: "4px",
+      fontFamily: "Cinzel, serif",
+    }}>
+      Admin
+    </div>
+    {isAdmin && (
+      <>
+        <NavLink href="/dashboard/sources" label="Sources" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+        <NavLink href="/dashboard/entities" label="Entities" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+        <NavLink href="/dashboard/users" label="Users" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+      </>
+    )}
+    {isEditor && (
+      <NavLink href="/dashboard/pipeline" label="Pipeline Health" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+    )}
+  </>
+)}
                       {/* Sign out */}
                       <button
                         onClick={handleSignOut}

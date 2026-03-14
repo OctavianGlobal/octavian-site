@@ -16,10 +16,6 @@ interface Source {
   status_group: "healthy" | "no-new-items" | "problem" | null;
 }
 
-interface Entity {
-  id: string; name: string; type: string | null; canonical_key: string | null; created_at: string | null;
-}
-
 const STATUS_COLOR: Record<string, { bg: string; color: string; label: string }> = {
   healthy:        { bg: "#f0fdf4", color: "#166534", label: "Healthy" },
   "no-new-items": { bg: "#fefce8", color: "#854d0e", label: "No New Items" },
@@ -31,12 +27,6 @@ const TYPE_LABELS: Record<string, string> = {
   think_tank: "Think Tank", tech: "Tech", environmental: "Environmental",
 };
 
-const ENTITY_TYPE_COLORS: Record<string, string> = {
-  country: "#e8eaf6", organization: "#e8f5e9", company: "#e3f2fd",
-  commodity: "#fff8e1", technology: "#e0f2f1", person: "#fce4ec",
-  infrastructure: "#f3e5f5", region: "#e8eaf6",
-};
-
 function fmt(dt: string | null) {
   if (!dt) return "—";
   return new Date(dt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -46,15 +36,17 @@ export default async function SourcesPage() {
   await requireAdmin();
   const supabase = await createServerSupabaseClient();
 
-  const { data: sourcesRaw } = await supabase.from("source_health_dashboard").select("*").order("name");
-  const { data: sourcesDetail } = await supabase.from("sources").select("name, type, credibility_weight, feed_url, ingest_method, is_active, last_http_status, last_entries_count, last_error, last_checked_at").order("name");
+  const { data: sourcesRaw } = await supabase
+    .from("source_health_dashboard").select("*").order("name");
+
+  const { data: sourcesDetail } = await supabase
+    .from("sources")
+    .select("name, type, credibility_weight, feed_url, ingest_method, is_active, last_http_status, last_entries_count, last_error, last_checked_at")
+    .order("name");
 
   const sourceMap = new Map<string, any>();
   (sourcesDetail ?? []).forEach((s: any) => sourceMap.set(s.name, s));
   const sources: Source[] = (sourcesRaw ?? []).map((s: any) => ({ ...s, ...(sourceMap.get(s.name) ?? {}) }));
-
-  const { data: entitiesRaw, count: entityCount } = await supabase.from("entities").select("id, name, type, canonical_key, created_at", { count: "exact" }).order("name");
-  const entities: Entity[] = entitiesRaw ?? [];
 
   const healthyCount = sources.filter(s => s.status_group === "healthy").length;
   const problemCount = sources.filter(s => s.status_group === "problem").length;
@@ -62,7 +54,6 @@ export default async function SourcesPage() {
 
   return (
     <>
-      {/* ── Masthead ── */}
       <div style={{ background: "#0a0a0a", paddingTop: "82px", paddingBottom: "28px", textAlign: "center", borderBottom: "1px solid #1a1a1a" }}>
         <div className="container">
           <Link href="/home" style={{ display: "inline-block", marginBottom: "10px" }}>
@@ -75,18 +66,19 @@ export default async function SourcesPage() {
         </div>
       </div>
 
-      {/* ── Full width content ── */}
       <div style={{ background: "var(--paper)", minHeight: "calc(100vh - 200px)" }}>
         <div className="container" style={{ padding: "32px 0" }}>
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+          <div style={{ marginBottom: "8px" }}>
             <Link href="/dashboard" style={{ color: "rgba(0,0,0,0.4)", fontSize: "12px", letterSpacing: "0.08em" }}>← Signal Queue</Link>
           </div>
-
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", paddingBottom: "16px", borderBottom: "1px solid var(--line)" }}>
             <div>
               <h1 className="dash-title">Sources</h1>
               <p className="dash-subtitle">{sources.length} sources · {healthyCount} healthy · {noItemsCount} no new items · {problemCount} problems</p>
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <Link href="/dashboard/entities" className="btn-light" style={{ fontSize: "12px", padding: "8px 14px" }}>Entities</Link>
+              <Link href="/dashboard/pipeline" className="btn-light" style={{ fontSize: "12px", padding: "8px 14px" }}>Pipeline Health</Link>
             </div>
           </div>
 
@@ -136,47 +128,8 @@ export default async function SourcesPage() {
               </tbody>
             </table>
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid var(--line)" }}>
-            <div>
-              <h2 className="dash-title" style={{ fontSize: "20px" }}>Entities</h2>
-              <p className="dash-subtitle">{entityCount ?? 0} tracked entities</p>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
-            {Object.entries(entities.reduce((acc, e) => { const t = e.type ?? "unknown"; acc[t] = (acc[t] ?? 0) + 1; return acc; }, {} as Record<string, number>)).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
-              <div key={type} style={{ background: ENTITY_TYPE_COLORS[type] ?? "#f5f5f5", color: "#333", borderRadius: "6px", padding: "4px 12px", fontSize: "12px", fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 500 }}>{type} · {count}</div>
-            ))}
-          </div>
-
-          <div style={{ border: "1px solid var(--line)", borderRadius: "10px", overflow: "hidden", marginBottom: "48px" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", fontFamily: "var(--font-jakarta), sans-serif" }}>
-              <thead>
-                <tr style={{ background: "#fafafa", borderBottom: "1px solid var(--line)" }}>
-                  {["Name", "Type", "Canonical Key", "Added"].map((h) => (
-                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", letterSpacing: "0.10em", textTransform: "uppercase", color: "#888", fontWeight: 600 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {entities.map((e, i) => (
-                  <tr key={e.id} style={{ borderBottom: i < entities.length - 1 ? "1px solid var(--line)" : "none", background: i % 2 === 0 ? "#ffffff" : "#fafafa" }}>
-                    <td style={{ padding: "10px 14px", fontWeight: 600, color: "#1a1a1a" }}>{e.name}</td>
-                    <td style={{ padding: "10px 14px" }}>
-                      {e.type && <span style={{ background: ENTITY_TYPE_COLORS[e.type] ?? "#f5f5f5", color: "#333", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 500 }}>{e.type}</span>}
-                    </td>
-                    <td style={{ padding: "10px 14px", color: "#888", fontFamily: "monospace", fontSize: "11px" }}>{e.canonical_key ?? "—"}</td>
-                    <td style={{ padding: "10px 14px", color: "#888", whiteSpace: "nowrap" }}>{fmt(e.created_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
         </div>
       </div>
-
       <Footer />
     </>
   );

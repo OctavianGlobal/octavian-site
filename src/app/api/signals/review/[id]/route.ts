@@ -1,5 +1,5 @@
-// ============================================================
 // src/app/api/signals/review/[id]/route.ts
+// ============================================================
 // Octavian Global — Fetch single signal for editor review
 // ============================================================
 
@@ -18,7 +18,6 @@ export async function GET(
     const supabase = createServiceClient() as any
     const { id } = await params
 
-    // Fetch signal + cluster + scores (now includes all score breakdown fields)
     const { data, error } = await supabase
       .from('signals')
       .select(`
@@ -61,7 +60,6 @@ export async function GET(
     const s = data as any
     const cluster = s.clusters ?? {}
 
-    // cluster_scores can come back as array or object depending on Supabase join
     const scores = Array.isArray(cluster.cluster_scores)
       ? (cluster.cluster_scores[0] ?? {})
       : (cluster.cluster_scores ?? {})
@@ -94,24 +92,47 @@ export async function GET(
       .select('*', { count: 'exact', head: true })
       .eq('cluster_id', cluster.id)
 
-    // Fetch source items (headline, url, snippet) for editor context
+    // Fetch source items + source name
     const { data: clusterItemRows } = await supabase
       .from('cluster_items')
       .select('item_id')
       .eq('cluster_id', cluster.id)
       .limit(5)
 
-    let sourceItems: { title: string | null; url: string | null; snippet: string | null }[] = []
+    let sourceItems: {
+      title: string | null
+      url: string | null
+      snippet: string | null
+      source_name: string | null
+    }[] = []
+
     const itemIds = (clusterItemRows ?? []).map((ci: any) => ci.item_id)
     if (itemIds.length > 0) {
       const { data: itemRows } = await supabase
         .from('items')
-        .select('title, url, snippet')
+        .select('title, url, snippet, source_id')
         .in('id', itemIds)
+
+      const sourceIds = [...new Set(
+        (itemRows ?? []).map((i: any) => i.source_id).filter(Boolean)
+      )]
+
+      let sourceNameMap: Record<string, string> = {}
+      if (sourceIds.length > 0) {
+        const { data: sourceRows } = await supabase
+          .from('sources')
+          .select('id, name')
+          .in('id', sourceIds)
+        sourceNameMap = Object.fromEntries(
+          (sourceRows ?? []).map((src: any) => [src.id, src.name])
+        )
+      }
+
       sourceItems = (itemRows ?? []).map((item: any) => ({
         title: item.title ?? null,
         url: item.url ?? null,
         snippet: item.snippet ?? null,
+        source_name: sourceNameMap[item.source_id] ?? null,
       }))
     }
 

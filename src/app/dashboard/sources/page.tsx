@@ -97,7 +97,7 @@ export default async function SourcesPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", fontFamily: "var(--font-jakarta), sans-serif" }}>
               <thead>
                 <tr style={{ background: "#fafafa", borderBottom: "1px solid var(--line)" }}>
-                  {["Source", "Type", "Method", "Status", "HTTP", "Entries", "Credibility", "Last Checked"].map((h) => (
+                  {["Source", "Type", "Method", "Status", "HTTP", "Entries", "Last Checked"].map((h) => (
                     <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", letterSpacing: "0.10em", textTransform: "uppercase", color: "#888", fontWeight: 600, whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -120,7 +120,7 @@ export default async function SourcesPage() {
                       </td>
                       <td style={{ padding: "10px 14px", color: s.last_http_status === 200 ? "#166534" : "#c0392b", fontVariantNumeric: "tabular-nums" }}>{s.last_http_status ?? "—"}</td>
                       <td style={{ padding: "10px 14px", color: "#555", fontVariantNumeric: "tabular-nums" }}>{s.last_entries_count ?? "—"}</td>
-                      <td style={{ padding: "10px 14px", color: "#555", fontVariantNumeric: "tabular-nums" }}>{s.credibility_weight !== null ? s.credibility_weight.toFixed(2) : "—"}</td>
+                      
                       <td style={{ padding: "10px 14px", color: "#888", whiteSpace: "nowrap" }}>{fmt(s.last_checked_at)}</td>
                     </tr>
                   );

@@ -128,8 +128,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [teasers, setTeasers] = useState<SocialTeasers | null>(null);
-  const [validationQuery, setValidationQuery] = useState<string | null>(null);
-  const [showTeasers, setShowTeasers] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -153,8 +151,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     setDrafting(true);
     setDraftError("");
     setTeasers(null);
-    setValidationQuery(null);
-    setShowTeasers(false);
     try {
       const res = await fetch("/api/signals/draft", {
         method: "POST",
@@ -164,17 +160,14 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       if (!res.ok) throw new Error("Draft failed");
       const data = await res.json();
       if (data.draft) setBody(data.draft);
-      if (data.teasers) { setTeasers(data.teasers); setShowTeasers(true); }
-      if (data.validation_query) setValidationQuery(data.validation_query);
+      if (data.teasers) setTeasers(data.teasers);
 
-      // ── Auto-prepend source or domain to title ──
+      // Auto-prepend source or domain to title
       const primarySource = signal.source_items?.[0]?.source_name;
       const prefix = primarySource ?? signal.primary_domain ?? null;
       if (prefix) {
         setTitle(prev => {
-          if (prev && !prev.includes(": ")) {
-            return `${prefix}: ${prev}`;
-          }
+          if (prev && !prev.includes(": ")) return `${prefix}: ${prev}`;
           return prev;
         });
       }
@@ -260,6 +253,24 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       .map((s: SourceItem) => [s.source_name, s])
   ).values()];
 
+  // Best social teaser
+  const bestTeaser = (() => {
+    if (!teasers) return null;
+    const scores: [keyof SocialTeasers, number][] = [
+      ["power", signal.power_score ?? 0],
+      ["money", signal.money_score ?? 0],
+      ["rules", signal.rules_score ?? 0],
+    ];
+    scores.sort((a, b) => b[1] - a[1]);
+    const [key, score] = scores[0];
+    if (score < 2.5 || !teasers[key]) return null;
+    return { key, score, text: teasers[key] as string };
+  })();
+
+  const domainTeaserColor: Record<string, string> = {
+    power: "#e53935", money: "#43a047", rules: "#1e88e5",
+  };
+
   return (
     <>
       <NavBar />
@@ -319,15 +330,64 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 />
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "0 0 16px" }}>
-                <button className="btn-light" onClick={handleDraft} disabled={drafting} style={{ fontSize: "12px" }}>
-                  {drafting ? "Drafting…" : body ? "↺ Redraft with AI" : "✦ Get AI Draft"}
+              {/* ── Action row: Get AI Draft + Publish + Archive + Cancel ── */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "0 0 16px", flexWrap: "wrap" }}>
+                <button
+                  className="btn-light"
+                  onClick={handleDraft}
+                  disabled={drafting || saving}
+                  style={{ fontSize: "12px", whiteSpace: "nowrap" }}
+                >
+                  {drafting ? "Drafting…" : body ? "↺ Redraft" : "✦ Get AI Draft"}
                 </button>
-                {drafting && <span style={{ fontSize: "12px", color: "var(--muted)" }}>Generating brief + social teasers…</span>}
-                {draftError && <span style={{ fontSize: "12px", color: "#c62828" }}>{draftError}</span>}
-                {!body && !drafting && (
-                  <span style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "0.04em" }}>or write the brief manually below</span>
-                )}
+
+                <div style={{ width: "1px", height: "24px", background: "#d0d0d0", flexShrink: 0 }} />
+
+                <button
+                  onClick={handlePublish}
+                  disabled={saving || !title.trim() || drafting}
+                  style={{
+                    padding: "8px 16px", fontSize: "12px", fontFamily: "inherit",
+                    background: saving || !title.trim() || drafting ? "#e5e7eb" : "#D4AF37",
+                    color: saving || !title.trim() || drafting ? "#9ca3af" : "#000",
+                    border: "none", borderRadius: "6px",
+                    cursor: saving || !title.trim() || drafting ? "default" : "pointer",
+                    fontWeight: 700, letterSpacing: "0.06em", whiteSpace: "nowrap",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  {saving ? "Publishing…" : "Publish →"}
+                </button>
+
+                <button
+                  onClick={handleArchive}
+                  disabled={saving || drafting}
+                  style={{
+                    padding: "8px 14px", fontSize: "12px", fontFamily: "inherit",
+                    background: "#fff", color: saving || drafting ? "#aaa" : "#333",
+                    border: "1px solid #d0d0d0", borderRadius: "6px",
+                    cursor: saving || drafting ? "default" : "pointer",
+                    fontWeight: 500, whiteSpace: "nowrap",
+                  }}
+                >
+                  Archive
+                </button>
+
+                <Link
+                  href="/dashboard"
+                  style={{
+                    padding: "8px 14px", fontSize: "12px",
+                    background: "#fff", color: "#888",
+                    border: "1px solid #e5e7eb", borderRadius: "6px",
+                    textDecoration: "none", fontFamily: "inherit",
+                    fontWeight: 500, whiteSpace: "nowrap",
+                  }}
+                >
+                  Cancel
+                </Link>
+
+                {draftError && <span style={{ fontSize: "11px", color: "#c62828" }}>{draftError}</span>}
+                {publishError && <span style={{ fontSize: "11px", color: "#c62828" }}>{publishError}</span>}
               </div>
 
               <div className="field">
@@ -340,97 +400,43 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 />
               </div>
 
-             {/* ── Social teaser — single strongest domain ── */}
-{teasers && (() => {
-  const domainScores: [string, number][] = [
-    ["power", signal.power_score ?? 0],
-    ["money", signal.money_score ?? 0],
-    ["rules", signal.rules_score ?? 0],
-  ];
-  const best = domainScores.sort((a, b) => b[1] - a[1])[0];
-  const bestKey = best[0] as "power" | "money" | "rules";
-  const bestScore = best[1];
-  const bestTeaser = teasers[bestKey];
-  if (!bestTeaser || bestScore < 2.5) return null;
-  const domainColor: Record<string, string> = {
-    power: "#e53935", money: "#43a047", rules: "#1e88e5",
-  };
-  return (
-    <div style={{
-      background: "#fafafa", border: "1px solid #e6e6e6",
-      borderRadius: "6px", padding: "10px 14px", marginBottom: "16px",
-      display: "flex", alignItems: "flex-start",
-      justifyContent: "space-between", gap: "12px",
-    }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <span style={{
-          fontSize: "9px", fontWeight: 700, letterSpacing: "0.14em",
-          color: domainColor[bestKey], fontFamily: "Cinzel, serif",
-          textTransform: "uppercase", marginRight: "8px",
-        }}>
-          {bestKey} teaser
-        </span>
-        <span style={{
-          fontSize: "12px", color: "#555",
-          fontFamily: "var(--font-jakarta), sans-serif", lineHeight: 1.5,
-        }}>
-          {bestTeaser.slice(0, 80)}{bestTeaser.length > 80 ? "…" : ""}
-        </span>
-      </div>
-      <button
-        onClick={() => navigator.clipboard.writeText(bestTeaser)}
-        style={{
-          background: "none", border: "1px solid #d0d0d0", color: "#888",
-          fontSize: "10px", padding: "3px 10px", borderRadius: "4px",
-          cursor: "pointer", fontFamily: "var(--font-jakarta), sans-serif",
-          flexShrink: 0, whiteSpace: "nowrap",
-        }}
-      >
-        Copy →
-      </button>
-    </div>
-  );
-})()}
-</div>
-
-            {/* ── Right: action buttons + intelligence panel ── */}
-            <div style={{ position: "sticky", top: "24px" }}>
-
-              {/* ── Action buttons — above score panel ── */}
-              <div style={{ marginBottom: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                {publishError && (
-                  <div style={{ fontSize: "12px", color: "#c62828", fontFamily: "var(--font-jakarta), sans-serif", padding: "8px 12px", background: "#fff5f5", border: "1px solid #fecaca", borderRadius: "6px" }}>
-                    {publishError}
+              {/* ── Social teaser — single strongest domain ── */}
+              {bestTeaser && (
+                <div style={{
+                  background: "#fafafa", border: "1px solid #e6e6e6",
+                  borderRadius: "6px", padding: "10px 14px", marginTop: "12px",
+                  display: "flex", alignItems: "flex-start",
+                  justifyContent: "space-between", gap: "12px",
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{
+                      fontSize: "9px", fontWeight: 700, letterSpacing: "0.14em",
+                      color: domainTeaserColor[bestTeaser.key] ?? "#888",
+                      fontFamily: "Cinzel, serif", textTransform: "uppercase", marginRight: "8px",
+                    }}>
+                      {bestTeaser.key} teaser
+                    </span>
+                    <span style={{ fontSize: "12px", color: "#555", fontFamily: "var(--font-jakarta), sans-serif", lineHeight: 1.5 }}>
+                      {bestTeaser.text.slice(0, 80)}{bestTeaser.text.length > 80 ? "…" : ""}
+                    </span>
                   </div>
-                )}
-                <button
-                  className="btn-gold"
-                  onClick={handlePublish}
-                  disabled={saving || !title.trim() || drafting}
-                  style={{ width: "100%", padding: "12px 20px", fontSize: "13px" }}
-                >
-                  {saving ? "Publishing…" : "Publish Brief →"}
-                </button>
-                <div style={{ display: "flex", gap: "8px" }}>
                   <button
-                    className="btn-light"
-                    onClick={handleArchive}
-                    disabled={saving}
-                    style={{ flex: 1, padding: "10px", fontSize: "12px" }}
+                    onClick={() => navigator.clipboard.writeText(bestTeaser.text)}
+                    style={{
+                      background: "none", border: "1px solid #d0d0d0", color: "#888",
+                      fontSize: "10px", padding: "3px 10px", borderRadius: "4px",
+                      cursor: "pointer", fontFamily: "var(--font-jakarta), sans-serif",
+                      flexShrink: 0, whiteSpace: "nowrap",
+                    }}
                   >
-                    Archive Signal
+                    Copy →
                   </button>
-                  <Link
-                    href="/dashboard"
-                    className="btn-light"
-                    style={{ flex: 1, padding: "10px", fontSize: "12px", textAlign: "center", display: "block" }}
-                  >
-                    Cancel
-                  </Link>
                 </div>
-              </div>
+              )}
+            </div>
 
-              {/* ── Intelligence panel ── */}
+            {/* ── Right: intelligence panel only ── */}
+            <div style={{ position: "sticky", top: "24px" }}>
               <div className="card" style={{ padding: "22px" }}>
                 <div style={{ fontSize: "11px", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "16px" }}>
                   Signal Intelligence
@@ -510,12 +516,11 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                     Score Breakdown
                   </div>
                   {[
-                    { label: "Evidence",      value: signal.evidence_score,     key: "evidence" },
-                    { label: "Impact",        value: signal.impact_score,       key: "impact" },
-                    { label: "Novelty",       value: signal.novelty_score,      key: "novelty" },
-                    { label: "Anomaly",       value: signal.anomaly_score,      key: "anomaly" },
-                    { label: "Credibility",   value: signal.credibility_score,  key: "credibility" },
-                    { label: "Corroboration", value: signal.corroboration_score, key: "corroboration" },
+                    { label: "Evidence",      value: signal.evidence_score,      key: "evidence" },
+                    { label: "Impact",         value: signal.impact_score,        key: "impact" },
+                    { label: "Novelty",        value: signal.novelty_score,       key: "novelty" },
+                    { label: "Anomaly",        value: signal.anomaly_score,       key: "anomaly" },
+                    { label: "Corroboration",  value: signal.corroboration_score, key: "corroboration" },
                   ].map(({ label, value, key }) => (
                     <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", marginBottom: "6px" }}>
                       <span style={{ color: "var(--muted)" }}>{label}</span>
@@ -541,7 +546,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   ))}
                 </div>
 
-                {/* Sources with tier badges */}
+                {/* Sources */}
                 <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>
                   {signal.ai_confidence !== null && !isNaN(signal.ai_confidence) && (
                     <div style={{ marginBottom: "8px" }}>

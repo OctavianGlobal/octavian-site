@@ -214,7 +214,7 @@ export default function StickyNav() {
                   ) : (
                     <>
                       {/* ── Logged-out nav ── */}
-                      <NavLink href="/tiers" label="Intelligence Tiers" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
+                     
                       <NavLink href="/login" label="Sign In" pathname={pathname} hovered={hoveredItem} setHovered={setHoveredItem} onClose={() => setMenuOpen(false)} />
                     </>
                   )}

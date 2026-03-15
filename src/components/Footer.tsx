@@ -12,7 +12,6 @@ export default function Footer() {
         }}>
           {[
             { href: "/briefs",  label: "Briefs" },
-            { href: "/tiers",   label: "Tiers" },
             { href: "/about",   label: "About" },
             { href: "/method",  label: "Method" },
             { href: "/contact", label: "Contact" },

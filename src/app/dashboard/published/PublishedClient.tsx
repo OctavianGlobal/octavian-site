@@ -101,7 +101,7 @@ export default function PublishedClient({
         </div>
       </div>
 
-      {/* ── Full width content ── */}
+      {/* ── Content ── */}
       <div style={{ background: "var(--paper)", minHeight: "calc(100vh - 200px)" }}>
         <div className="container" style={{ padding: "32px 0" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", paddingBottom: "16px", borderBottom: "1px solid var(--line)" }}>
@@ -125,10 +125,19 @@ export default function PublishedClient({
           ) : (
             signals.map((sig) => {
               const title = sig.published_title ?? sig.cluster_summary ?? "Untitled";
-              // Only show description if it differs from the title
-              const description = sig.cluster_summary && sig.cluster_summary !== sig.published_title
-                ? sig.cluster_summary
-                : null;
+
+              // Use first meaningful line of body as description, same as briefs page
+              const description = (() => {
+                if (!sig.published_body_md) return null;
+                return sig.published_body_md
+                  .split('\n')
+                  .find(line => {
+                    const t = line.trim();
+                    return t.length > 0 && !t.startsWith('#') && !t.startsWith('**') && !t.startsWith('*');
+                  })
+                  ?.replace(/\*\*/g, '')
+                  .trim() ?? null;
+              })();
 
               return (
                 <article key={sig.id} className="brief-row" style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>

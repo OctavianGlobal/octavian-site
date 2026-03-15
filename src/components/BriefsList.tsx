@@ -92,13 +92,14 @@ export default function BriefsList({
               fontFamily: "Cinzel, serif",
               fontSize: "12px",
               letterSpacing: "0.12em",
-              background: "transparent",
-              border: "1px solid #D4AF37",
-              color: "#D4AF37",
+              background: loading ? "#c9a227" : "#D4AF37",
+              border: "none",
+              color: "#000",
               borderRadius: "4px",
               cursor: loading ? "default" : "pointer",
-              opacity: loading ? 0.6 : 1,
-              transition: "opacity 0.15s",
+              opacity: loading ? 0.7 : 1,
+              transition: "opacity 0.15s, background 0.15s",
+              fontWeight: 700,
             }}
           >
             {loading ? "Loading…" : `Load More  (${signals.length} of ${totalCount})`}

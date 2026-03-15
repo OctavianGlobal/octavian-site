@@ -33,7 +33,7 @@ export default function Footer() {
         <div className="footer-brand">
           <OctavianWordmark size={18} color="#D4AF37" letterSpacing="0.28em" />
         </div>
-        <div className="footer-sub">Strategic Intelligence and Pattern Recognition</div>
+        <div className="footer-sub">Strategic Intelligence</div>
         <div className="footer-fine">
           Copyright {year} Octavian Global ·{" "}
           <Link href="https://octavian.global" style={{ color: "inherit" }}>octavian.global</Link>

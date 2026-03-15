@@ -11,6 +11,7 @@ interface SourceItem {
   snippet: string | null;
   source_name: string | null;
   source_type: string | null;
+  published_at: string | null;
 }
 
 interface SignalReviewData {
@@ -18,6 +19,7 @@ interface SignalReviewData {
   cluster_id: string;
   status: string;
   created_at: string;
+  oldest_published_at: string | null;
   published_title: string | null;
   published_body_md: string | null;
   cluster_summary: string | null;
@@ -117,6 +119,11 @@ function fmt(value: number | null | undefined): string {
   return (value * 100).toFixed(0);
 }
 
+function getSourceAgeDays(publishedAt: string | null): number | null {
+  if (!publishedAt) return null;
+  return (Date.now() - new Date(publishedAt).getTime()) / 86400000;
+}
+
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const id = resolvedParams.id;
@@ -164,7 +171,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     load();
   }, [id]);
 
-  // Grow textarea whenever body changes
   useEffect(() => {
     growTextarea();
   }, [body]);
@@ -292,6 +298,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     power: "#e53935", money: "#43a047", rules: "#1e88e5",
   };
 
+  const sourceAgeDays = getSourceAgeDays(signal.oldest_published_at);
+  const sourceIsStale = sourceAgeDays !== null && sourceAgeDays > 3;
+
   return (
     <>
       <NavBar />
@@ -302,9 +311,35 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
             {/* ── Left: editor ── */}
             <div>
               <h1 style={{ fontFamily: "Cinzel, serif", fontSize: "20px", marginBottom: "6px" }}>Edit & Publish Brief</h1>
-              <p style={{ color: "var(--muted)", fontSize: "12px", marginBottom: "24px" }}>
+              <p style={{ color: "var(--muted)", fontSize: "12px", marginBottom: signal.oldest_published_at ? "8px" : "24px" }}>
                 Signal detected {signal.created_at?.slice(0, 10)} · {signal.item_count} source item{signal.item_count !== 1 ? "s" : ""}
               </p>
+
+              {/* ── Source publish date warning ── */}
+              {signal.oldest_published_at && (
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: "6px",
+                  marginBottom: "24px",
+                  padding: sourceIsStale ? "4px 10px" : "2px 0",
+                  background: sourceIsStale ? "#fef2f2" : "transparent",
+                  border: sourceIsStale ? "1px solid #fca5a5" : "none",
+                  borderRadius: "6px",
+                }}>
+                  {sourceIsStale && (
+                    <span style={{ fontSize: "13px" }}>⚠️</span>
+                  )}
+                  <span style={{
+                    fontSize: "12px",
+                    color: sourceIsStale ? "#c62828" : "var(--muted)",
+                    fontWeight: sourceIsStale ? 700 : 400,
+                  }}>
+                    Source published {new Date(signal.oldest_published_at).toLocaleDateString("en-US", {
+                      month: "short", day: "numeric", year: "numeric",
+                    })}
+                    {sourceIsStale && ` — ${Math.floor(sourceAgeDays!)} days ago`}
+                  </span>
+                </div>
+              )}
 
               {/* ── Source context ── */}
               {(signal.source_items ?? []).length > 0 && (
@@ -325,6 +360,11 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                               {item.title}
                             </a>
                           ) : item.title}
+                        </div>
+                      )}
+                      {item.published_at && (
+                        <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "3px", fontFamily: "var(--font-jakarta), sans-serif" }}>
+                          {new Date(item.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                         </div>
                       )}
                       {item.url && (

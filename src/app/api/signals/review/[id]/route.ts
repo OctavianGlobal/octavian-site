@@ -92,7 +92,7 @@ export async function GET(
       .select('*', { count: 'exact', head: true })
       .eq('cluster_id', cluster.id)
 
-    // Fetch source items + source name + source type
+    // Fetch source items + source name + source type + published_at
     const { data: clusterItemRows } = await supabase
       .from('cluster_items')
       .select('item_id')
@@ -105,13 +105,16 @@ export async function GET(
       snippet: string | null
       source_name: string | null
       source_type: string | null
+      published_at: string | null
     }[] = []
+
+    let oldestPublishedAt: string | null = null
 
     const itemIds = (clusterItemRows ?? []).map((ci: any) => ci.item_id)
     if (itemIds.length > 0) {
       const { data: itemRows } = await supabase
         .from('items')
-        .select('title, url, snippet, source_id')
+        .select('title, url, snippet, source_id, published_at')
         .in('id', itemIds)
 
       const sourceIds = [...new Set(
@@ -130,12 +133,19 @@ export async function GET(
       }
 
       sourceItems = (itemRows ?? []).map((item: any) => ({
-        title:       item.title ?? null,
-        url:         item.url ?? null,
-        snippet:     item.snippet ?? null,
-        source_name: sourceMap[item.source_id]?.name ?? null,
-        source_type: sourceMap[item.source_id]?.type ?? null,
+        title:        item.title ?? null,
+        url:          item.url ?? null,
+        snippet:      item.snippet ?? null,
+        source_name:  sourceMap[item.source_id]?.name ?? null,
+        source_type:  sourceMap[item.source_id]?.type ?? null,
+        published_at: item.published_at ?? null,
       }))
+
+      // Find the oldest published_at across all source items
+      oldestPublishedAt = (itemRows ?? [])
+        .map((i: any) => i.published_at)
+        .filter(Boolean)
+        .sort()[0] ?? null
     }
 
     return NextResponse.json({
@@ -160,6 +170,7 @@ export async function GET(
       tag_names:           tagNames,
       item_count:          itemCount ?? 0,
       source_items:        sourceItems,
+      oldest_published_at: oldestPublishedAt,
       signal_score_raw:    scores.signal_score_raw ?? null,
       power_score:         scores.power_score ?? null,
       money_score:         scores.money_score ?? null,

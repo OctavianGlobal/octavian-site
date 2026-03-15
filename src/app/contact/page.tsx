@@ -101,18 +101,6 @@ export default function ContactPage() {
             </form>
           )}
         </section>
-
-        <section className="section container">
-          <div className="mini-links">
-            <Link href="/briefs">Briefs</Link>
-            <span className="sep">·</span>
-            <Link href="/about">About</Link>
-            <span className="sep">·</span>
-            <Link href="/method">Method</Link>
-            <span className="sep">·</span>
-            <Link href="/contact">Contact</Link>
-          </div>
-        </section>
       </main>
 
       <Footer />

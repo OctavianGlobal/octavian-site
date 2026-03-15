@@ -139,7 +139,17 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       if (!res.ok) { setNotFound(true); setLoading(false); return; }
       const data: SignalReviewData = await res.json();
       setSignal(data);
-      setTitle(data.published_title ?? data.cluster_summary ?? "");
+
+      // ── Auto-prepend source or domain to title on load ──
+      const rawTitle = data.published_title ?? data.cluster_summary ?? "";
+      const primarySource = data.source_items?.[0]?.source_name;
+      const prefix = primarySource ?? data.primary_domain ?? null;
+      if (prefix && rawTitle && !rawTitle.includes(": ")) {
+        setTitle(`${prefix}: ${rawTitle}`);
+      } else {
+        setTitle(rawTitle);
+      }
+
       setBody(data.published_body_md ?? "");
       setLoading(false);
     }
@@ -162,7 +172,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       if (data.draft) setBody(data.draft);
       if (data.teasers) setTeasers(data.teasers);
 
-      // Auto-prepend source or domain to title
+      // Re-apply prefix on redraft in case title was cleared
       const primarySource = signal.source_items?.[0]?.source_name;
       const prefix = primarySource ?? signal.primary_domain ?? null;
       if (prefix) {
@@ -253,7 +263,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       .map((s: SourceItem) => [s.source_name, s])
   ).values()];
 
-  // Best social teaser
+  // Best social teaser — no score threshold, always show if teasers exist
   const bestTeaser = (() => {
     if (!teasers) return null;
     const scores: [keyof SocialTeasers, number][] = [
@@ -262,9 +272,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       ["rules", signal.rules_score ?? 0],
     ];
     scores.sort((a, b) => b[1] - a[1]);
-    const [key, score] = scores[0];
-    if (score < 2.5 || !teasers[key]) return null;
-    return { key, score, text: teasers[key] as string };
+    const [key] = scores[0];
+    if (!teasers[key]) return null;
+    return { key, text: teasers[key] as string };
   })();
 
   const domainTeaserColor: Record<string, string> = {

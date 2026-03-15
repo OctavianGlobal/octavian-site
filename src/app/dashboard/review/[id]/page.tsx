@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
 
@@ -132,6 +132,15 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const [draftError, setDraftError] = useState("");
   const [saving, setSaving] = useState(false);
   const [publishError, setPublishError] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const growTextarea = () => {
+    const el = textareaRef.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = el.scrollHeight + "px";
+    }
+  };
 
   useEffect(() => {
     async function load() {
@@ -140,7 +149,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       const data: SignalReviewData = await res.json();
       setSignal(data);
 
-      // ── Auto-prepend source or domain to title on load ──
       const rawTitle = data.published_title ?? data.cluster_summary ?? "";
       const primarySource = data.source_items?.[0]?.source_name;
       const prefix = primarySource ?? data.primary_domain ?? null;
@@ -155,6 +163,11 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     }
     load();
   }, [id]);
+
+  // Grow textarea whenever body changes
+  useEffect(() => {
+    growTextarea();
+  }, [body]);
 
   const handleDraft = useCallback(async () => {
     if (!signal) return;
@@ -172,7 +185,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       if (data.draft) setBody(data.draft);
       if (data.teasers) setTeasers(data.teasers);
 
-      // Re-apply prefix on redraft in case title was cleared
       const primarySource = signal.source_items?.[0]?.source_name;
       const prefix = primarySource ?? signal.primary_domain ?? null;
       if (prefix) {
@@ -263,7 +275,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       .map((s: SourceItem) => [s.source_name, s])
   ).values()];
 
-  // Best social teaser — no score threshold, always show if teasers exist
   const bestTeaser = (() => {
     if (!teasers) return null;
     const scores: [keyof SocialTeasers, number][] = [
@@ -340,7 +351,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 />
               </div>
 
-              {/* ── Action row: Get AI Draft + Publish + Archive + Cancel ── */}
+              {/* ── Action row ── */}
               <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "0 0 16px", flexWrap: "wrap" }}>
                 <button
                   className="btn-light"
@@ -403,33 +414,56 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               <div className="field">
                 <label>Brief Body (Markdown)</label>
                 <textarea
+                  ref={textareaRef}
                   value={body}
-                  onChange={(e) => setBody(e.target.value)}
+                  onChange={(e) => {
+                    setBody(e.target.value);
+                    growTextarea();
+                  }}
                   placeholder="Write the brief here, or click Get AI Draft for a starting point."
-                  style={{ minHeight: "460px", fontFamily: "monospace", fontSize: "13px", lineHeight: "1.7", opacity: drafting ? 0.5 : 1, transition: "opacity 0.2s" }}
+                  style={{
+                    minHeight: "120px",
+                    fontFamily: "monospace",
+                    fontSize: "13px",
+                    lineHeight: "1.7",
+                    opacity: drafting ? 0.5 : 1,
+                    transition: "opacity 0.2s",
+                    resize: "none",
+                    overflow: "hidden",
+                    width: "100%",
+                  }}
                 />
               </div>
 
-              {/* ── Social teaser — single strongest domain ── */}
-              {bestTeaser && (
-                <div style={{
-                  background: "#fafafa", border: "1px solid #e6e6e6",
-                  borderRadius: "6px", padding: "10px 14px", marginTop: "12px",
-                  display: "flex", alignItems: "flex-start",
-                  justifyContent: "space-between", gap: "12px",
-                }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{
-                      fontSize: "9px", fontWeight: 700, letterSpacing: "0.14em",
-                      color: domainTeaserColor[bestTeaser.key] ?? "#888",
-                      fontFamily: "Cinzel, serif", textTransform: "uppercase", marginRight: "8px",
-                    }}>
-                      {bestTeaser.key} teaser
+              {/* ── Social teaser — always visible ── */}
+              <div style={{
+                background: "#fafafa", border: "1px solid #e6e6e6",
+                borderRadius: "6px", padding: "10px 14px", marginTop: "12px",
+                display: "flex", alignItems: "flex-start",
+                justifyContent: "space-between", gap: "12px",
+                minHeight: "40px",
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {bestTeaser ? (
+                    <>
+                      <span style={{
+                        fontSize: "9px", fontWeight: 700, letterSpacing: "0.14em",
+                        color: domainTeaserColor[bestTeaser.key] ?? "#888",
+                        fontFamily: "Cinzel, serif", textTransform: "uppercase", marginRight: "8px",
+                      }}>
+                        {bestTeaser.key} teaser
+                      </span>
+                      <span style={{ fontSize: "12px", color: "#555", fontFamily: "var(--font-jakarta), sans-serif", lineHeight: 1.5 }}>
+                        {bestTeaser.text.slice(0, 80)}{bestTeaser.text.length > 80 ? "…" : ""}
+                      </span>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: "11px", color: "#bbb", fontFamily: "var(--font-jakarta), sans-serif", fontStyle: "italic" }}>
+                      Social teaser will appear after AI draft
                     </span>
-                    <span style={{ fontSize: "12px", color: "#555", fontFamily: "var(--font-jakarta), sans-serif", lineHeight: 1.5 }}>
-                      {bestTeaser.text.slice(0, 80)}{bestTeaser.text.length > 80 ? "…" : ""}
-                    </span>
-                  </div>
+                  )}
+                </div>
+                {bestTeaser && (
                   <button
                     onClick={() => navigator.clipboard.writeText(bestTeaser.text)}
                     style={{
@@ -441,11 +475,11 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   >
                     Copy →
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            {/* ── Right: intelligence panel only ── */}
+            {/* ── Right: intelligence panel ── */}
             <div style={{ position: "sticky", top: "24px" }}>
               <div className="card" style={{ padding: "22px" }}>
                 <div style={{ fontSize: "11px", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "16px" }}>

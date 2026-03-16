@@ -17,7 +17,7 @@ export async function GET() {
 
     const supabase = createServiceClient() as any
 
-    const scripts = ['ingest', 'classify', 'cluster', 'score', 'baseline_refresh']
+    const scripts = ['ingest', 'cluster', 'classify', 'score', 'baseline_refresh']
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
@@ -38,6 +38,12 @@ export async function GET() {
       const scriptRuns = rows.filter((r) => r.script === script)
       const latest = scriptRuns[0] ?? null
 
+      // For errors_7d, only count api_errors from failed/partial runs
+      // to avoid alarming on historical build-period failures
+      const errors7d = scriptRuns
+        .filter((r) => r.status === 'failed' || r.status === 'partial')
+        .reduce((s: number, r: any) => s + (r.api_errors ?? 0), 0)
+
       return {
         script,
         last_run_at:           latest?.run_at ?? null,
@@ -48,8 +54,8 @@ export async function GET() {
         last_duration_seconds: latest?.duration_seconds ?? null,
         last_notes:            latest?.notes ?? null,
         runs_7d:   scriptRuns.length,
-        items_7d:  scriptRuns.reduce((s, r) => s + (r.items_processed ?? 0), 0),
-        errors_7d: scriptRuns.reduce((s, r) => s + (r.api_errors ?? 0), 0),
+        items_7d:  scriptRuns.reduce((s: number, r: any) => s + (r.items_processed ?? 0), 0),
+        errors_7d: errors7d,
       }
     })
 

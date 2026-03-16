@@ -17,35 +17,53 @@ interface PipelineRunSummary {
 }
 
 const SCRIPT_LABELS: Record<string, string> = {
-  ingest: "Ingest",
-  classify: "Classify",
-  cluster: "Cluster",
-  score: "Score",
+  ingest:           "Ingest",
+  cluster:          "Cluster",
+  classify:         "Classify",
+  geocode:          "Geocode",
+  score:            "Score",
   baseline_refresh: "Baseline Refresh",
+  social:           "Social Distribution",
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  success: "#166534",
-  partial: "#854d0e",
-  failed: "#991b1b",
+  success:        "#166534",
+  partial:        "#854d0e",
+  failed:         "#991b1b",
+  not_configured: "#555",
+  unknown:        "#555",
 };
 
 const STATUS_BG: Record<string, string> = {
-  success: "#f0fdf4",
-  partial: "#fefce8",
-  failed: "#fff5f5",
+  success:        "#f0fdf4",
+  partial:        "#fefce8",
+  failed:         "#fff5f5",
+  not_configured: "#f5f5f5",
+  unknown:        "#f5f5f5",
 };
 
 const STATUS_BORDER: Record<string, string> = {
-  success: "#bbf7d0",
-  partial: "#fde047",
-  failed: "#fecaca",
+  success:        "#bbf7d0",
+  partial:        "#fde047",
+  failed:         "#fecaca",
+  not_configured: "#e5e7eb",
+  unknown:        "#e5e7eb",
 };
 
 const STATUS_ICON: Record<string, string> = {
-  success: "✓",
-  partial: "⚠",
-  failed: "✗",
+  success:        "✓",
+  partial:        "⚠",
+  failed:         "✗",
+  not_configured: "○",
+  unknown:        "?",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  success:        "Success",
+  partial:        "Partial",
+  failed:         "Failed",
+  not_configured: "Not Configured",
+  unknown:        "Unknown",
 };
 
 function timeAgo(isoString: string): string {
@@ -83,13 +101,15 @@ export default function PipelineHealthFull() {
     }
   }
 
-  const SCRIPT_ORDER = ["ingest", "cluster", "classify", "score", "baseline_refresh"];
+  const SCRIPT_ORDER = ["ingest", "cluster", "classify", "geocode", "score", "baseline_refresh", "social"];
   const sorted = [...runs].sort((a, b) =>
     SCRIPT_ORDER.indexOf(a.script) - SCRIPT_ORDER.indexOf(b.script)
   );
 
-  const hasFailure = runs.some(r => r.last_status === "failed");
-  const hasPartial = runs.some(r => r.last_status === "partial");
+  // Overall status excludes social placeholder
+  const pipelineRuns = sorted.filter(r => r.script !== "social");
+  const hasFailure = pipelineRuns.some(r => r.last_status === "failed");
+  const hasPartial = pipelineRuns.some(r => r.last_status === "partial");
   const overallStatus = hasFailure ? "failed" : hasPartial ? "partial" : "success";
 
   return (
@@ -130,13 +150,15 @@ export default function PipelineHealthFull() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
           {sorted.map((run) => {
             const status = run.last_status ?? "unknown";
-            const color = STATUS_COLOR[status] ?? "#555";
-            const bg = STATUS_BG[status] ?? "#f5f5f5";
+            const color  = STATUS_COLOR[status] ?? "#555";
+            const bg     = STATUS_BG[status] ?? "#f5f5f5";
             const border = STATUS_BORDER[status] ?? "#e5e7eb";
-            const icon = STATUS_ICON[status] ?? "?";
+            const icon   = STATUS_ICON[status] ?? "?";
+            const label  = STATUS_LABEL[status] ?? status;
+            const isPlaceholder = status === "not_configured";
 
             return (
-              <div key={run.script} style={{ border: "1px solid var(--line)", borderRadius: "10px", overflow: "hidden", background: "#fff" }}>
+              <div key={run.script} style={{ border: "1px solid var(--line)", borderRadius: "10px", overflow: "hidden", background: "#fff", opacity: isPlaceholder ? 0.7 : 1 }}>
                 {/* Card header */}
                 <div style={{ background: bg, borderBottom: `1px solid ${border}`, padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px" }}>
                   <span style={{ fontSize: "16px", fontWeight: 700, color }}>{icon}</span>
@@ -144,13 +166,20 @@ export default function PipelineHealthFull() {
                     {SCRIPT_LABELS[run.script] ?? run.script}
                   </span>
                   <span style={{ marginLeft: "auto", fontSize: "11px", fontWeight: 600, color, background: bg, border: `1px solid ${border}`, padding: "2px 8px", borderRadius: "4px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    {status}
+                    {label}
                   </span>
                 </div>
 
                 {/* Card body */}
                 <div style={{ padding: "14px 16px" }}>
-                  {run.last_run_at ? (
+                  {isPlaceholder ? (
+                    <div style={{ fontSize: "12px", color: "#888", fontFamily: "var(--font-jakarta), sans-serif", lineHeight: 1.6 }}>
+                      {run.last_notes ?? "Integration not yet configured."}
+                      <div style={{ marginTop: "6px", fontSize: "11px", color: "#bbb" }}>
+                        Make.com + Buffer · social_posts table ready
+                      </div>
+                    </div>
+                  ) : run.last_run_at ? (
                     <>
                       <div style={{ fontSize: "13px", color: "#1a1a1a", marginBottom: "8px", fontFamily: "var(--font-jakarta), sans-serif" }}>
                         <strong>Last run:</strong> {timeAgo(run.last_run_at)}

@@ -2,11 +2,6 @@
 // src/lib/queries.ts
 // Octavian Global — Live Supabase data queries
 // Updated March 2026 — synced to real pipeline schema
-//
-// CANDIDATE_MAX_AGE_DAYS (30) must match cleanup.py.
-// Candidates older than 30 days are auto-archived by cleanup.py
-// and hidden from the dashboard queue by the .gte() filter here.
-// The archive (status='archived') retains all historical signal data.
 // ============================================================
 
 import { createServerSupabaseClient } from '@/lib/supabase'
@@ -16,13 +11,6 @@ import type {
   PublishedSignal,
   SignalDomain,
 } from '@/types/supabase'
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-// Must match CANDIDATE_MAX_AGE_DAYS in cleanup.py.
-// Candidates older than this are auto-archived by the pipeline and
-// excluded from the dashboard queue here.
-const CANDIDATE_MAX_AGE_DAYS = 30
 
 // ── Dashboard — Signal Queue ──────────────────────────────────────────────────
 
@@ -41,12 +29,6 @@ export async function getDashboardData(opts: {
   const sort = opts.sort ?? 'date'
   const dir = opts.dir ?? 'desc'
   const ascending = dir === 'asc'
-
-  // Only show candidates within the active review window.
-  // Anything older has been (or will be) auto-archived by cleanup.py.
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - CANDIDATE_MAX_AGE_DAYS)
-  const cutoffISO = cutoffDate.toISOString()
 
   // ── Step 1: resolve domain filter to cluster_ids ──
   let clusterIdFilter: string[] | null = null
@@ -86,7 +68,6 @@ export async function getDashboardData(opts: {
       )
     `, { count: 'exact' })
     .eq('status', 'candidate')
-    .gte('created_at', cutoffISO)
 
   if (clusterIdFilter) {
     query = query.in('cluster_id', clusterIdFilter)
@@ -99,9 +80,7 @@ export async function getDashboardData(opts: {
       query = query.range(opts.offset, opts.offset + limit - 1)
     }
   } else {
-    // Raised from 500 to 5000 — prevents high-scoring signals from being
-    // silently dropped when the candidate queue is large.
-    query = query.order('created_at', { ascending: false }).limit(5000)
+    query = query.order('created_at', { ascending: false }).limit(500)
   }
 
   const { data, count, error } = await query
@@ -159,6 +138,7 @@ export async function getDashboardData(opts: {
         .select('cluster_id, item_id')
         .in('cluster_id', clusterIds)
 
+      // One item per cluster — take first
       const clusterItemMap: Record<string, string> = {}
       for (const row of (ciRows ?? []) as any[]) {
         if (!clusterItemMap[row.cluster_id]) {
@@ -196,6 +176,7 @@ export async function getDashboardData(opts: {
           }
         }
 
+        // Attach to mapped signals
         mapped = mapped.map(m => {
           const itemId = m.cluster_id ? clusterItemMap[m.cluster_id] : null
           const itemData = itemId ? itemMap[itemId] : null

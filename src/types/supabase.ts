@@ -2,19 +2,22 @@
 // src/types/supabase.ts
 // Octavian Global — Supabase Database Types
 // Synced to real schema — March 2026
+// Updated 2026-03-18: added action_score, mechanism_score, scale_score
+// to ClusterScore; added item_age to items; added primary_published_at,
+// primary_fetched_at, primary_item_age to DashboardSignal.
 // ============================================================
-
+ 
 export type SubscriptionTier =
   | 'free'
   | 'signal'
   | 'signal_plus'
   | 'analyst'
   | 'editor'
-
+ 
 export type SignalStatus = 'candidate' | 'published' | 'archived'
 export type SignalDomain = 'POWER' | 'MONEY' | 'RULES' | 'ENVIRONMENT' | 'TECHNOLOGY'
 export type SubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'inactive' | null
-
+ 
 export interface Database {
   public: {
     Tables: {
@@ -38,6 +41,7 @@ export interface Database {
           url: string | null
           published_at: string | null
           fetched_at: string | null
+          item_age: number | null           // (fetched_at - published_at) in days, set at ingest
           snippet: string | null
           raw_text: string | null
           raw_payload_jsonb: Record<string, unknown> | null
@@ -132,6 +136,9 @@ export interface Database {
           severity_modifier: number | null
           signal_score_raw: number | null       // Master signal score 0.0–1.0
           ai_confidence: number | null
+          action_score: number | null           // Did something actually happen? (0.0–1.0)
+          mechanism_score: number | null        // Does this reveal how a system works? (0.0–1.0)
+          scale_score: number | null            // How many systems/people affected? (0.0–1.0)
           scored_at: string | null
         }
         Insert: Omit<Database['public']['Tables']['cluster_scores']['Row'], 'scored_at'>
@@ -224,7 +231,7 @@ export interface Database {
     }
   }
 }
-
+ 
 // ============================================================
 // Convenience row types
 // ============================================================
@@ -235,7 +242,7 @@ export type Entity        = Database['public']['Tables']['entities']['Row']
 export type Tag           = Database['public']['Tables']['tags']['Row']
 export type Profile       = Database['public']['Tables']['profiles']['Row']
 export type Item          = Database['public']['Tables']['items']['Row']
-
+ 
 // ── Dashboard / query shape ───────────────────────────────────────────────────
 // What getDashboardData returns per signal row (joined from signals + clusters + cluster_scores)
 export interface DashboardSignal {
@@ -243,10 +250,6 @@ export interface DashboardSignal {
   status: SignalStatus
   created_at: string | null
   cluster_id: string | null
-primary_published_at: string | null
-primary_fetched_at: string | null
-primary_item_age: number | null
-
   // From clusters join
   cluster_summary: string | null
   primary_domain: SignalDomain | null
@@ -262,11 +265,14 @@ primary_item_age: number | null
   // Resolved at query time (tier-gated)
   score: number | null
   confidence: number | null
-  // To display in signal queue cards
+  // From primary item in cluster — for queue display and rapid archiving
   primary_snippet: string | null
   primary_source_name: string | null
+  primary_published_at: string | null
+  primary_fetched_at: string | null
+  primary_item_age: number | null
 }
-
+ 
 // ── Public-facing signal (published briefs) ───────────────────────────────────
 export interface PublishedSignal {
   id: string
@@ -283,6 +289,6 @@ export interface PublishedSignal {
   score: number | null
   confidence: number | null
 }
-
+ 
 // Legacy alias — kept for any existing imports
 export type SignalPublic = DashboardSignal

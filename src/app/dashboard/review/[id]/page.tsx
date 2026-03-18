@@ -41,6 +41,9 @@ interface SignalReviewData {
   credibility_score: number | null;
   corroboration_score: number | null;
   severity_modifier: number | null;
+  action_score: number | null;
+  mechanism_score: number | null;
+  scale_score: number | null;
 }
 
 interface SocialTeasers {
@@ -85,6 +88,53 @@ const THRESHOLDS: Record<string, { green: number; yellow: number }> = {
   credibility:   { green: 0.70, yellow: 0.45 },
   corroboration: { green: 0.50, yellow: 0.25 },
   domain:        { green: 3.5,  yellow: 2.0  },
+  action:        { green: 0.70, yellow: 0.30 },
+  mechanism:     { green: 0.50, yellow: 0.25 },
+  scale:         { green: 0.60, yellow: 0.30 },
+};
+
+// Plain-English tooltip for each score row
+const SCORE_TOOLTIPS: Record<string, { title: string; desc: string; scale: string }> = {
+  action: {
+    title: "Action Score",
+    desc: "Did something actually happen, or is this just talk?",
+    scale: "1.0 = executed (sanctions imposed, troops deployed, law signed) · 0.7 = underway · 0.3 = announced/proposed · 0.0 = speech/commentary only",
+  },
+  mechanism: {
+    title: "Mechanism Score",
+    desc: "Does this reveal how a system actually works?",
+    scale: "1.0 = exposes a dependency, bottleneck, or vulnerability (supply chain chokepoint, sanctions evasion network, cyber transfer pathway) · 0.5 = partial · 0.0 = event only",
+  },
+  scale: {
+    title: "Scale Score",
+    desc: "How many people or systems are affected?",
+    scale: "0.9–1.0 = global/cross-system · 0.6–0.8 = national/regional · 0.3–0.5 = firm/sector · 0.0–0.2 = isolated/individual",
+  },
+  evidence: {
+    title: "Evidence Score",
+    desc: "How credible and well-sourced is this signal?",
+    scale: "Combines source credibility weight (70%) and primary-source corroboration (30%). High = trusted institutional sources. Low = single secondary source.",
+  },
+  impact: {
+    title: "Impact Score",
+    desc: "What is the likely system reach of this event?",
+    scale: "Derived from max domain score + severity + mechanism + scale. High = affects energy, military capability, central banking, supply chains. Low = isolated incident or speech.",
+  },
+  novelty: {
+    title: "Novelty Score",
+    desc: "How unusual is this compared to recent history?",
+    scale: "Currently a placeholder (0.5). Future versions will compare entity-tag pair frequency against 30/90-day baseline to detect genuinely rare combinations.",
+  },
+  anomaly: {
+    title: "Anomaly Score",
+    desc: "Is this topic spiking above its normal frequency?",
+    scale: "Based on tag frequency deviation from 7-day rolling baseline. High = this topic is appearing far more than usual. Low = routine coverage level.",
+  },
+  corroboration: {
+    title: "Corroboration Score",
+    desc: "How many primary sources reported this independently?",
+    scale: "Fraction of items from primary/institutional sources. Note: high corroboration can reflect routine repeated commentary, not just important events.",
+  },
 };
 
 function getStoplight(key: string, value: number | null | undefined): StoplightColor {
@@ -107,6 +157,61 @@ function StoplightBubble({ color }: { color: StoplightColor }) {
   );
 }
 
+// Tooltip component — appears on hover above the row
+function ScoreTooltip({ tooltipKey }: { tooltipKey: string }) {
+  const [visible, setVisible] = useState(false);
+  const tip = SCORE_TOOLTIPS[tooltipKey];
+  if (!tip) return null;
+
+  return (
+    <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+      <span
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          width: "14px", height: "14px", borderRadius: "50%",
+          background: "#f0f0f0", border: "1px solid #d0d0d0",
+          color: "#999", fontSize: "9px", cursor: "default",
+          fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 700,
+          flexShrink: 0,
+        }}
+      >
+        ?
+      </span>
+      {visible && (
+        <div style={{
+          position: "absolute", bottom: "20px", left: "50%",
+          transform: "translateX(-50%)",
+          background: "#1a1a1a", color: "#fff",
+          borderRadius: "6px", padding: "10px 12px",
+          width: "240px", zIndex: 100,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+          pointerEvents: "none",
+        }}>
+          <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", marginBottom: "4px", color: "#D4AF37", fontFamily: "Cinzel, serif" }}>
+            {tip.title}
+          </div>
+          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.85)", lineHeight: 1.5, marginBottom: "6px", fontFamily: "var(--font-jakarta), sans-serif" }}>
+            {tip.desc}
+          </div>
+          <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", lineHeight: 1.5, fontFamily: "var(--font-jakarta), sans-serif", borderTop: "1px solid #333", paddingTop: "6px" }}>
+            {tip.scale}
+          </div>
+          {/* Arrow */}
+          <div style={{
+            position: "absolute", bottom: "-5px", left: "50%", transform: "translateX(-50%)",
+            width: 0, height: 0,
+            borderLeft: "5px solid transparent",
+            borderRight: "5px solid transparent",
+            borderTop: "5px solid #1a1a1a",
+          }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function getOverallReadiness(scorePct: number | null): { label: string; color: StoplightColor; desc: string } {
   if (scorePct === null) return { label: "No Score", color: "none", desc: "Signal has not been scored yet" };
   if (scorePct >= 65) return { label: "Publish", color: "green", desc: "Signal meets publishing threshold" };
@@ -122,6 +227,11 @@ function fmt(value: number | null | undefined): string {
 function getSourceAgeDays(publishedAt: string | null): number | null {
   if (!publishedAt) return null;
   return (Date.now() - new Date(publishedAt).getTime()) / 86400000;
+}
+
+function fmtAgeDays(days: number | null): string {
+  if (days === null) return "—";
+  return `${days.toFixed(1)} days`;
 }
 
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
@@ -301,6 +411,18 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const sourceAgeDays = getSourceAgeDays(signal.oldest_published_at);
   const sourceIsStale = sourceAgeDays !== null && sourceAgeDays > 3;
 
+  // Score breakdown rows — new fields at top, then existing
+  const scoreRows: { label: string; value: number | null; key: string }[] = [
+    { label: "Action",        value: signal.action_score,        key: "action" },
+    { label: "Mechanism",     value: signal.mechanism_score,     key: "mechanism" },
+    { label: "Scale",         value: signal.scale_score,         key: "scale" },
+    { label: "Evidence",      value: signal.evidence_score,      key: "evidence" },
+    { label: "Impact",        value: signal.impact_score,        key: "impact" },
+    { label: "Novelty",       value: signal.novelty_score,       key: "novelty" },
+    { label: "Anomaly",       value: signal.anomaly_score,       key: "anomaly" },
+    { label: "Corroboration", value: signal.corroboration_score, key: "corroboration" },
+  ];
+
   return (
     <>
       <NavBar />
@@ -325,9 +447,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   border: sourceIsStale ? "1px solid #fca5a5" : "none",
                   borderRadius: "6px",
                 }}>
-                  {sourceIsStale && (
-                    <span style={{ fontSize: "13px" }}>⚠️</span>
-                  )}
+                  {sourceIsStale && <span style={{ fontSize: "13px" }}>⚠️</span>}
                   <span style={{
                     fontSize: "12px",
                     color: sourceIsStale ? "#c62828" : "var(--muted)",
@@ -475,7 +595,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 />
               </div>
 
-              {/* ── Social teaser — always visible ── */}
+              {/* ── Social teaser ── */}
               <div style={{
                 background: "#fafafa", border: "1px solid #e6e6e6",
                 borderRadius: "6px", padding: "10px 14px", marginTop: "12px",
@@ -549,16 +669,27 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   </div>
                 </div>
 
-                {/* Signal score */}
+                {/* Signal score + age */}
                 <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "4px" }}>
                   <span style={{ fontFamily: "Cinzel, serif", fontSize: "42px", fontWeight: 600, color: "var(--gold)", lineHeight: 1 }}>
                     {scorePct !== null ? scorePct : "—"}
                   </span>
                   <span style={{ fontSize: "13px", color: "var(--muted)" }}>/ 100</span>
                 </div>
-                <div style={{ fontSize: "11px", color: "var(--muted)", marginBottom: "18px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                <div style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "4px" }}>
                   Signal Score
                 </div>
+                {sourceAgeDays !== null && (
+                  <div style={{ fontSize: "11px", marginBottom: "14px" }}>
+                    <span style={{ color: "#999", letterSpacing: "0.06em", textTransform: "uppercase", marginRight: "4px" }}>Age</span>
+                    <span style={{
+                      fontWeight: 600,
+                      color: sourceAgeDays > 5 ? "#c0392b" : sourceAgeDays > 3 ? "#d97706" : "#166534",
+                    }}>
+                      {fmtAgeDays(sourceAgeDays)}
+                    </span>
+                  </div>
+                )}
 
                 {/* Domain pills */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "18px" }}>
@@ -594,26 +725,29 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   ))}
                 </div>
 
-                {/* Score breakdown */}
+                {/* Score breakdown — new fields at top, all with tooltips */}
                 <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", marginBottom: "14px" }}>
                   <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "10px" }}>
                     Score Breakdown
                   </div>
-                  {[
-                    { label: "Evidence",      value: signal.evidence_score,      key: "evidence" },
-                    { label: "Impact",         value: signal.impact_score,        key: "impact" },
-                    { label: "Novelty",        value: signal.novelty_score,       key: "novelty" },
-                    { label: "Anomaly",        value: signal.anomaly_score,       key: "anomaly" },
-                    { label: "Corroboration",  value: signal.corroboration_score, key: "corroboration" },
-                  ].map(({ label, value, key }) => (
-                    <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", marginBottom: "6px" }}>
-                      <span style={{ color: "var(--muted)" }}>{label}</span>
+
+                  {scoreRows.map(({ label, value, key }) => (
+                    <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", marginBottom: "7px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                        <span style={{ color: "var(--muted)" }}>{label}</span>
+                        <ScoreTooltip tooltipKey={key} />
+                      </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums", minWidth: "24px", textAlign: "right" }}>{fmt(value)}</span>
+                        <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums", minWidth: "24px", textAlign: "right" }}>
+                          {fmt(value)}
+                        </span>
                         <StoplightBubble color={getStoplight(key, value)} />
                       </div>
                     </div>
                   ))}
+
+                  {/* Divider between new and existing rows */}
+                  <div style={{ borderTop: "1px dashed #eee", margin: "8px 0" }} />
                 </div>
 
                 {/* Legend */}

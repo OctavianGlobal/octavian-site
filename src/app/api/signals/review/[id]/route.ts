@@ -1,6 +1,7 @@
-// src/app/api/signals/review/[id]/route.ts
 // ============================================================
+// src/app/api/signals/review/[id]/route.ts
 // Octavian Global — Fetch single signal for editor review
+// Updated 2026-03-18: added action_score, mechanism_score, scale_score
 // ============================================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -46,7 +47,10 @@ export async function GET(
             credibility_score,
             corroboration_score,
             severity_modifier,
-            ai_confidence
+            ai_confidence,
+            action_score,
+            mechanism_score,
+            scale_score
           )
         )
       `)
@@ -141,7 +145,6 @@ export async function GET(
         published_at: item.published_at ?? null,
       }))
 
-      // Find the oldest published_at across all source items
       oldestPublishedAt = (itemRows ?? [])
         .map((i: any) => i.published_at)
         .filter(Boolean)
@@ -171,18 +174,21 @@ export async function GET(
       item_count:          itemCount ?? 0,
       source_items:        sourceItems,
       oldest_published_at: oldestPublishedAt,
-      signal_score_raw:    scores.signal_score_raw ?? null,
-      power_score:         scores.power_score ?? null,
-      money_score:         scores.money_score ?? null,
-      rules_score:         scores.rules_score ?? null,
-      ai_confidence:       scores.ai_confidence ?? null,
-      evidence_score:      scores.evidence_score ?? null,
-      impact_score:        scores.impact_score ?? null,
-      novelty_score:       scores.novelty_score ?? null,
-      anomaly_score:       scores.anomaly_score ?? null,
-      credibility_score:   scores.credibility_score ?? null,
+      signal_score_raw:    scores.signal_score_raw    ?? null,
+      power_score:         scores.power_score         ?? null,
+      money_score:         scores.money_score         ?? null,
+      rules_score:         scores.rules_score         ?? null,
+      ai_confidence:       scores.ai_confidence       ?? null,
+      evidence_score:      scores.evidence_score      ?? null,
+      impact_score:        scores.impact_score        ?? null,
+      novelty_score:       scores.novelty_score       ?? null,
+      anomaly_score:       scores.anomaly_score       ?? null,
+      credibility_score:   scores.credibility_score   ?? null,
       corroboration_score: scores.corroboration_score ?? null,
-      severity_modifier:   scores.severity_modifier ?? null,
+      severity_modifier:   scores.severity_modifier   ?? null,
+      action_score:        scores.action_score        ?? null,
+      mechanism_score:     scores.mechanism_score     ?? null,
+      scale_score:         scores.scale_score         ?? null,
     })
   } catch (err) {
     console.error('[api/signals/review/[id]]', err)

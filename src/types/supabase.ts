@@ -243,6 +243,10 @@ export interface DashboardSignal {
   status: SignalStatus
   created_at: string | null
   cluster_id: string | null
+primary_published_at: string | null
+primary_fetched_at: string | null
+primary_item_age: number | null
+
   // From clusters join
   cluster_summary: string | null
   primary_domain: SignalDomain | null

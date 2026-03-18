@@ -7,6 +7,10 @@
 // Candidates older than 30 days are auto-archived by cleanup.py
 // and hidden from the dashboard queue by the .gte() filter here.
 // The archive (status='archived') retains all historical signal data.
+//
+// UPDATE (2026-03-18): getDashboardData now fetches published_at,
+// fetched_at, and item_age from the primary item in each cluster
+// for display in the editor queue.
 // ============================================================
 
 import { createServerSupabaseClient } from '@/lib/supabase'
@@ -20,8 +24,6 @@ import type {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 // Must match CANDIDATE_MAX_AGE_DAYS in cleanup.py.
-// Candidates older than this are auto-archived by the pipeline and
-// excluded from the dashboard queue here.
 const CANDIDATE_MAX_AGE_DAYS = 30
 
 // ── Dashboard — Signal Queue ──────────────────────────────────────────────────
@@ -42,8 +44,6 @@ export async function getDashboardData(opts: {
   const dir = opts.dir ?? 'desc'
   const ascending = dir === 'asc'
 
-  // Only show candidates within the active review window.
-  // Anything older has been (or will be) auto-archived by cleanup.py.
   const cutoffDate = new Date()
   cutoffDate.setDate(cutoffDate.getDate() - CANDIDATE_MAX_AGE_DAYS)
   const cutoffISO = cutoffDate.toISOString()
@@ -99,8 +99,6 @@ export async function getDashboardData(opts: {
       query = query.range(opts.offset, opts.offset + limit - 1)
     }
   } else {
-    // Raised from 500 to 5000 — prevents high-scoring signals from being
-    // silently dropped when the candidate queue is large.
     query = query.order('created_at', { ascending: false }).limit(5000)
   }
 
@@ -147,10 +145,13 @@ export async function getDashboardData(opts: {
       confidence: perms.canViewConfidence ? rawConfidence : null,
       primary_snippet: null,
       primary_source_name: null,
+      primary_published_at: null,
+      primary_fetched_at: null,
+      primary_item_age: null,
     }
   })
 
-  // ── Step 3b: fetch top snippet + source name per cluster ──
+  // ── Step 3b: fetch snippet, source name, published_at, fetched_at, item_age ──
   const clusterIds = mapped.map(m => m.cluster_id).filter(Boolean) as string[]
   if (clusterIds.length > 0) {
     try {
@@ -159,6 +160,7 @@ export async function getDashboardData(opts: {
         .select('cluster_id, item_id')
         .in('cluster_id', clusterIds)
 
+      // One item per cluster — take first
       const clusterItemMap: Record<string, string> = {}
       for (const row of (ciRows ?? []) as any[]) {
         if (!clusterItemMap[row.cluster_id]) {
@@ -170,7 +172,7 @@ export async function getDashboardData(opts: {
       if (itemIds.length > 0) {
         const { data: itemRows } = await supabase
           .from('items')
-          .select('id, snippet, source_id')
+          .select('id, snippet, source_id, published_at, fetched_at, item_age')
           .in('id', itemIds)
 
         const sourceIds = [...new Set(
@@ -188,26 +190,39 @@ export async function getDashboardData(opts: {
           )
         }
 
-        const itemMap: Record<string, { snippet: string | null; source_name: string | null }> = {}
+        const itemMap: Record<string, {
+          snippet: string | null
+          source_name: string | null
+          published_at: string | null
+          fetched_at: string | null
+          item_age: number | null
+        }> = {}
+
         for (const item of (itemRows ?? []) as any[]) {
           itemMap[item.id] = {
-            snippet: item.snippet ?? null,
-            source_name: item.source_id ? (sourceNameMap[item.source_id] ?? null) : null,
+            snippet:      item.snippet ?? null,
+            source_name:  item.source_id ? (sourceNameMap[item.source_id] ?? null) : null,
+            published_at: item.published_at ?? null,
+            fetched_at:   item.fetched_at ?? null,
+            item_age:     item.item_age ?? null,
           }
         }
 
         mapped = mapped.map(m => {
-          const itemId = m.cluster_id ? clusterItemMap[m.cluster_id] : null
+          const itemId   = m.cluster_id ? clusterItemMap[m.cluster_id] : null
           const itemData = itemId ? itemMap[itemId] : null
           return {
             ...m,
-            primary_snippet: itemData?.snippet ?? null,
-            primary_source_name: itemData?.source_name ?? null,
+            primary_snippet:      itemData?.snippet ?? null,
+            primary_source_name:  itemData?.source_name ?? null,
+            primary_published_at: itemData?.published_at ?? null,
+            primary_fetched_at:   itemData?.fetched_at ?? null,
+            primary_item_age:     itemData?.item_age ?? null,
           }
         })
       }
     } catch (e) {
-      console.error('[getDashboardData] snippet fetch error', e)
+      console.error('[getDashboardData] item fetch error', e)
     }
   }
 

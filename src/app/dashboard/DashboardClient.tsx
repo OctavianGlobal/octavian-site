@@ -143,6 +143,20 @@ export default function DashboardClient({
     return [sig.primary_domain ?? DOMAIN_FALLBACK];
   }
 
+  // Format a UTC ISO string to a short local date e.g. "Mar 18, 2026"
+  function fmtDate(iso: string | null): string {
+    if (!iso) return "—";
+    try {
+      return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    } catch { return iso.slice(0, 10); }
+  }
+
+  // Format item_age (decimal days) to a readable number e.g. "1.4 days" or "0.3 days"
+  function fmtAge(days: number | null): string {
+    if (days === null || days === undefined) return "—";
+    return `${days.toFixed(1)} days`;
+  }
+
   const sortArrow = dir === 'desc' ? '▼' : '▲';
 
   function sortButtonStyle(field: 'date' | 'score'): React.CSSProperties {
@@ -165,7 +179,6 @@ export default function DashboardClient({
     };
   }
 
-  // Upgrade nudge message per tier
   function upgradeMessage(): string {
     if (tier === "free") return "Upgrade to Signal to unlock Domain Gauges on every brief";
     if (tier === "signal") return "Upgrade to Signal Plus to see numerical Signal Scores and AI Confidence";
@@ -294,7 +307,9 @@ export default function DashboardClient({
                 <div key={sig.id} className="queue-row" style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="queue-title">{sig.cluster_summary ?? "Untitled Signal"}</div>
-                    <div className="meta" style={{ margin: "4px 0 8px" }}>
+
+                    {/* ── Primary meta row: signal date + domains + confidence ── */}
+                    <div className="meta" style={{ margin: "4px 0 6px" }}>
                       <span className="meta-item">{sig.created_at?.slice(0, 10) ?? "—"}</span>
                       <span className="meta-dot" />
                       {parseDomains(sig).map((d) => (
@@ -305,6 +320,32 @@ export default function DashboardClient({
                       )}
                     </div>
 
+                    {/* ── Item provenance row: published, fetched, age ── */}
+                    <div style={{
+                      display: "flex", gap: "16px", flexWrap: "wrap",
+                      margin: "0 0 8px",
+                      fontFamily: "var(--font-jakarta), sans-serif",
+                    }}>
+                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                        <span style={{ color: "#999", letterSpacing: "0.06em", textTransform: "uppercase", marginRight: "4px" }}>Published</span>
+                        <span style={{ color: "var(--ink)", fontWeight: 500 }}>{fmtDate(sig.primary_published_at)}</span>
+                      </span>
+                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                        <span style={{ color: "#999", letterSpacing: "0.06em", textTransform: "uppercase", marginRight: "4px" }}>Fetched</span>
+                        <span style={{ color: "var(--ink)", fontWeight: 500 }}>{fmtDate(sig.primary_fetched_at)}</span>
+                      </span>
+                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                        <span style={{ color: "#999", letterSpacing: "0.06em", textTransform: "uppercase", marginRight: "4px" }}>Age</span>
+                        <span style={{
+                          color: sig.primary_item_age !== null && sig.primary_item_age > 3 ? "#c0392b" : "var(--ink)",
+                          fontWeight: 500,
+                        }}>
+                          {fmtAge(sig.primary_item_age)}
+                        </span>
+                      </span>
+                    </div>
+
+                    {/* ── Expanded domain scores ── */}
                     {expanded === sig.id && perms.canViewDomainScores && (
                       <div style={{ marginTop: "8px" }}>
                         {sig.primary_snippet && (
@@ -336,7 +377,7 @@ export default function DashboardClient({
                     {perms.canViewDomainScores && (
                       <button
                         onClick={() => toggleExpand(sig.id)}
-                        style={{ background: "none", border: "none", color: "var(--muted)", fontSize: "11px", letterSpacing: "0.08em", cursor: "pointer", marginTop: "10px", padding: 0, textTransform: "uppercase" }}
+                        style={{ background: "none", border: "none", color: "var(--muted)", fontSize: "11px", letterSpacing: "0.08em", cursor: "pointer", marginTop: "6px", padding: 0, textTransform: "uppercase" }}
                       >
                         {expanded === sig.id ? "▲ Less" : "▼ Domain Scores"}
                       </button>

@@ -159,7 +159,7 @@ export async function getDashboardData(opts: {
         .from('cluster_items')
         .select('cluster_id, item_id')
         .in('cluster_id', clusterIds)
-
+.limit(10000)
       // One item per cluster — take first
       const clusterItemMap: Record<string, string> = {}
       for (const row of (ciRows ?? []) as any[]) {

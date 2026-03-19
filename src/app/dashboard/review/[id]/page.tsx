@@ -93,47 +93,46 @@ const THRESHOLDS: Record<string, { green: number; yellow: number }> = {
   scale:         { green: 0.60, yellow: 0.30 },
 };
 
-// Plain-English tooltip for each score row
 const SCORE_TOOLTIPS: Record<string, { title: string; desc: string; scale: string }> = {
   action: {
     title: "Action Score",
     desc: "Did something actually happen, or is this just talk?",
-    scale: "1.0 = executed (sanctions imposed, troops deployed, law signed) · 0.7 = underway · 0.3 = announced/proposed · 0.0 = speech/commentary only",
+    scale: "1.0 = executed · 0.7 = underway · 0.3 = announced/proposed · 0.0 = speech/commentary only",
   },
   mechanism: {
     title: "Mechanism Score",
     desc: "Does this reveal how a system actually works?",
-    scale: "1.0 = exposes a dependency, bottleneck, or vulnerability (supply chain chokepoint, sanctions evasion network, cyber transfer pathway) · 0.5 = partial · 0.0 = event only",
+    scale: "1.0 = exposes a dependency, bottleneck, or vulnerability · 0.5 = partial · 0.0 = event only",
   },
   scale: {
     title: "Scale Score",
     desc: "How many people or systems are affected?",
-    scale: "0.9–1.0 = global/cross-system · 0.6–0.8 = national/regional · 0.3–0.5 = firm/sector · 0.0–0.2 = isolated/individual",
+    scale: "0.9–1.0 = global · 0.6–0.8 = national/regional · 0.3–0.5 = firm/sector · 0.0–0.2 = isolated",
   },
   evidence: {
     title: "Evidence Score",
     desc: "How credible and well-sourced is this signal?",
-    scale: "Combines source credibility weight (70%) and primary-source corroboration (30%). High = trusted institutional sources. Low = single secondary source.",
+    scale: "Combines source credibility (70%) and primary-source corroboration (30%).",
   },
   impact: {
     title: "Impact Score",
     desc: "What is the likely system reach of this event?",
-    scale: "Derived from max domain score + severity + mechanism + scale. High = affects energy, military capability, central banking, supply chains. Low = isolated incident or speech.",
+    scale: "Derived from max domain score + severity + mechanism + scale.",
   },
   novelty: {
     title: "Novelty Score",
     desc: "How unusual is this compared to recent history?",
-    scale: "Currently a placeholder (0.5). Future versions will compare entity-tag pair frequency against 30/90-day baseline to detect genuinely rare combinations.",
+    scale: "Compares entity-tag pair frequency against 30/90-day baseline.",
   },
   anomaly: {
     title: "Anomaly Score",
     desc: "Is this topic spiking above its normal frequency?",
-    scale: "Based on tag frequency deviation from 7-day rolling baseline. High = this topic is appearing far more than usual. Low = routine coverage level.",
+    scale: "Based on tag frequency deviation from 7-day rolling baseline.",
   },
   corroboration: {
     title: "Corroboration Score",
     desc: "How many primary sources reported this independently?",
-    scale: "Fraction of items from primary/institutional sources. Note: high corroboration can reflect routine repeated commentary, not just important events.",
+    scale: "Fraction of items from primary/institutional sources.",
   },
 };
 
@@ -157,7 +156,6 @@ function StoplightBubble({ color }: { color: StoplightColor }) {
   );
 }
 
-// Tooltip component — appears on hover above the row
 function ScoreTooltip({ tooltipKey }: { tooltipKey: string }) {
   const [visible, setVisible] = useState(false);
   const tip = SCORE_TOOLTIPS[tooltipKey];
@@ -176,16 +174,14 @@ function ScoreTooltip({ tooltipKey }: { tooltipKey: string }) {
           fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 700,
           flexShrink: 0,
         }}
-      >
-        ?
-      </span>
+      >?</span>
       {visible && (
         <div style={{
           position: "absolute", bottom: "20px", left: "50%",
           transform: "translateX(-50%)",
           background: "#1a1a1a", color: "#fff",
           borderRadius: "6px", padding: "10px 12px",
-          width: "240px", zIndex: 100,
+          width: "220px", zIndex: 100,
           boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
           pointerEvents: "none",
         }}>
@@ -198,12 +194,10 @@ function ScoreTooltip({ tooltipKey }: { tooltipKey: string }) {
           <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", lineHeight: 1.5, fontFamily: "var(--font-jakarta), sans-serif", borderTop: "1px solid #333", paddingTop: "6px" }}>
             {tip.scale}
           </div>
-          {/* Arrow */}
           <div style={{
             position: "absolute", bottom: "-5px", left: "50%", transform: "translateX(-50%)",
             width: 0, height: 0,
-            borderLeft: "5px solid transparent",
-            borderRight: "5px solid transparent",
+            borderLeft: "5px solid transparent", borderRight: "5px solid transparent",
             borderTop: "5px solid #1a1a1a",
           }} />
         </div>
@@ -244,11 +238,13 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const [notFound, setNotFound] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [draftGenerated, setDraftGenerated] = useState(false);
   const [teasers, setTeasers] = useState<SocialTeasers | null>(null);
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState("");
   const [saving, setSaving] = useState(false);
   const [publishError, setPublishError] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false); // mobile score panel toggle
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const growTextarea = () => {
@@ -275,15 +271,15 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
         setTitle(rawTitle);
       }
 
-      setBody(data.published_body_md ?? "");
+      const existingBody = data.published_body_md ?? "";
+      setBody(existingBody);
+      if (existingBody.trim()) setDraftGenerated(true);
       setLoading(false);
     }
     load();
   }, [id]);
 
-  useEffect(() => {
-    growTextarea();
-  }, [body]);
+  useEffect(() => { growTextarea(); }, [body]);
 
   const handleDraft = useCallback(async () => {
     if (!signal) return;
@@ -298,7 +294,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       });
       if (!res.ok) throw new Error("Draft failed");
       const data = await res.json();
-      if (data.draft) setBody(data.draft);
+      if (data.draft) { setBody(data.draft); setDraftGenerated(true); }
       if (data.teasers) setTeasers(data.teasers);
 
       const primarySource = signal.source_items?.[0]?.source_name;
@@ -317,7 +313,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   }, [signal, id]);
 
   async function handlePublish() {
-    if (!title.trim() || saving) return;
+    if (!title.trim() || !body.trim() || saving) return;
     setSaving(true);
     setPublishError("");
     try {
@@ -411,7 +407,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const sourceAgeDays = getSourceAgeDays(signal.oldest_published_at);
   const sourceIsStale = sourceAgeDays !== null && sourceAgeDays > 3;
 
-  // Score breakdown rows — new fields at top, then existing
   const scoreRows: { label: string; value: number | null; key: string }[] = [
     { label: "Action",        value: signal.action_score,        key: "action" },
     { label: "Mechanism",     value: signal.mechanism_score,     key: "mechanism" },
@@ -423,47 +418,337 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     { label: "Corroboration", value: signal.corroboration_score, key: "corroboration" },
   ];
 
+  // Publish is only enabled when title + body both have content
+  const canPublish = !saving && !drafting && title.trim().length > 0 && body.trim().length > 0;
+
+  // ── Intelligence panel — shared between desktop sidebar and mobile drawer ──
+  const IntelPanel = () => (
+    <div className="card" style={{ padding: "22px" }}>
+      <div style={{ fontSize: "11px", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "16px" }}>
+        Signal Intelligence
+      </div>
+
+      {/* Readiness */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: "10px",
+        background: readiness.color === "green" ? "rgba(34,197,94,0.08)" : readiness.color === "yellow" ? "rgba(234,179,8,0.08)" : readiness.color === "red" ? "rgba(239,68,68,0.08)" : "#f5f5f5",
+        border: `1px solid ${readinessStyle.border}22`,
+        borderRadius: "8px", padding: "10px 14px", marginBottom: "18px",
+      }}>
+        <span style={{
+          width: "12px", height: "12px", borderRadius: "50%", flexShrink: 0,
+          background: readinessStyle.bg, border: `1px solid ${readinessStyle.border}`,
+          boxShadow: readiness.color !== "none" ? `0 0 6px ${readinessStyle.glow}` : "none",
+        }} />
+        <div>
+          <div style={{
+            fontSize: "13px", fontWeight: 700, fontFamily: "Cinzel, serif", letterSpacing: "0.08em",
+            color: readiness.color === "green" ? "#166534" : readiness.color === "yellow" ? "#854d0e" : readiness.color === "red" ? "#991b1b" : "#555",
+          }}>{readiness.label}</div>
+          <div style={{ fontSize: "11px", color: "var(--muted)" }}>{readiness.desc}</div>
+        </div>
+      </div>
+
+      {/* Score */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "4px" }}>
+        <span style={{ fontFamily: "Cinzel, serif", fontSize: "42px", fontWeight: 600, color: "var(--gold)", lineHeight: 1 }}>
+          {scorePct !== null ? scorePct : "—"}
+        </span>
+        <span style={{ fontSize: "13px", color: "var(--muted)" }}>/ 100</span>
+      </div>
+      <div style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "4px" }}>Signal Score</div>
+      {sourceAgeDays !== null && (
+        <div style={{ fontSize: "11px", marginBottom: "14px" }}>
+          <span style={{ color: "#999", letterSpacing: "0.06em", textTransform: "uppercase", marginRight: "4px" }}>Age</span>
+          <span style={{ fontWeight: 600, color: sourceAgeDays > 5 ? "#c0392b" : sourceAgeDays > 3 ? "#d97706" : "#166534" }}>
+            {fmtAgeDays(sourceAgeDays)}
+          </span>
+        </div>
+      )}
+
+      {/* Domain pills */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "18px" }}>
+        {domains.map((d) => (
+          <span key={d} style={{
+            fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em",
+            padding: "3px 8px", borderRadius: "4px",
+            border: `1px solid ${DOMAIN_COLORS[d] ?? "#999"}`,
+            color: DOMAIN_COLORS[d] ?? "#999", background: "transparent",
+          }}>{d}</span>
+        ))}
+      </div>
+
+      {/* Domain bars */}
+      <div style={{ marginBottom: "18px" }}>
+        {[
+          { label: "Power", value: signal.power_score, cls: "power" },
+          { label: "Money", value: signal.money_score, cls: "money" },
+          { label: "Rules", value: signal.rules_score, cls: "rules" },
+        ].map(({ label, value, cls }) => (
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+            <span className="domain-bar-label">{label}</span>
+            <div className="domain-bar-track" style={{ flex: 1 }}>
+              <div className={`domain-bar-fill ${cls}`} style={{ width: value !== null && !isNaN(value) ? `${Math.min((value / 5) * 100, 100)}%` : "0%" }} />
+            </div>
+            <span className="domain-bar-value" style={{ width: "28px" }}>
+              {value !== null && !isNaN(value) ? value.toFixed(1) : "—"}
+            </span>
+            <StoplightBubble color={getStoplight("domain", value)} />
+          </div>
+        ))}
+      </div>
+
+      {/* Score breakdown */}
+      <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", marginBottom: "14px" }}>
+        <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "10px" }}>
+          Score Breakdown
+        </div>
+        {scoreRows.map(({ label, value, key }) => (
+          <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", marginBottom: "7px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <span style={{ color: "var(--muted)" }}>{label}</span>
+              <ScoreTooltip tooltipKey={key} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums", minWidth: "24px", textAlign: "right" }}>
+                {fmt(value)}
+              </span>
+              <StoplightBubble color={getStoplight(key, value)} />
+            </div>
+          </div>
+        ))}
+        <div style={{ borderTop: "1px dashed #eee", margin: "8px 0" }} />
+      </div>
+
+      {/* Legend */}
+      <div style={{ background: "#f9f9f9", borderRadius: "6px", padding: "8px 12px", marginBottom: "14px", display: "flex", gap: "14px", flexWrap: "wrap" }}>
+        {(["green", "yellow", "red"] as StoplightColor[]).map((color) => (
+          <div key={color} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <StoplightBubble color={color} />
+            <span style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "0.06em" }}>
+              {color === "green" ? "Publish" : color === "yellow" ? "Consider" : "Hold"}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Sources */}
+      <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>
+        {signal.ai_confidence !== null && !isNaN(signal.ai_confidence) && (
+          <div style={{ marginBottom: "8px" }}>
+            AI Confidence: <strong style={{ color: "var(--ink)" }}>{Math.round(signal.ai_confidence * 100)}%</strong>
+          </div>
+        )}
+        <div>
+          <div style={{ marginBottom: "6px" }}>Sources:</div>
+          {uniqueSources.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              {uniqueSources.map((s: SourceItem) => {
+                const tier = getTier(s.source_type);
+                return (
+                  <div key={s.source_name} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <strong style={{ color: "var(--ink)", fontSize: "12px" }}>{s.source_name}</strong>
+                    {tier && (
+                      <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", padding: "2px 6px", borderRadius: "4px", background: tier.bg, color: tier.color }}>
+                        {tier.label}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <strong style={{ color: "var(--ink)" }}>{signal.item_count} item{signal.item_count !== 1 ? "s" : ""}</strong>
+          )}
+        </div>
+      </div>
+
+      {/* Entities */}
+      {(signal.entity_names ?? []).length > 0 && (
+        <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", marginBottom: "14px" }}>
+          <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "8px" }}>Entities</div>
+          <div className="queue-tags">
+            {(signal.entity_names ?? []).map((e) => <span key={e} className="tag-pill">{e}</span>)}
+          </div>
+        </div>
+      )}
+
+      {/* Tags */}
+      {(signal.tag_names ?? []).length > 0 && (
+        <div style={{ borderTop: "1px solid #eee", paddingTop: "14px" }}>
+          <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "8px" }}>Tags</div>
+          <div className="queue-tags">
+            {(signal.tag_names ?? []).map((t) => <span key={t} className="tag-pill" style={{ background: "#f5f5f5" }}>{t.replace(/_/g, " ")}</span>)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
-      <NavBar />
-      <div style={{ background: "var(--paper)", minHeight: "calc(100vh - 120px)" }}>
-        <div className="container" style={{ padding: "32px 0" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "32px", alignItems: "start" }}>
+      <style>{`
+        .review-layout {
+          display: grid;
+          grid-template-columns: 1fr 320px;
+          gap: 28px;
+          align-items: start;
+        }
+        .review-panel-desktop { display: block; }
+        .review-panel-mobile  { display: none; }
+        .review-mobile-toggle { display: none; }
 
-            {/* ── Left: editor ── */}
+        @media (max-width: 860px) {
+          .review-layout {
+            grid-template-columns: 1fr;
+          }
+          .review-panel-desktop { display: none; }
+          .review-panel-mobile  { display: block; }
+          .review-mobile-toggle { display: flex !important; }
+        }
+
+        .action-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin: 0 0 16px;
+          flex-wrap: wrap;
+        }
+
+        .btn-draft {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          font-size: 12px;
+          font-family: inherit;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          white-space: nowrap;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: opacity 0.15s, background 0.15s;
+          background: #1a56db;
+          color: #ffffff;
+        }
+        .btn-draft:disabled {
+          background: #93aee8;
+          cursor: default;
+        }
+        .btn-draft:not(:disabled):hover { opacity: 0.88; }
+
+        .btn-publish {
+          display: inline-flex;
+          align-items: center;
+          padding: 8px 16px;
+          font-size: 12px;
+          font-family: inherit;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          white-space: nowrap;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .btn-publish:disabled {
+          background: #e5e7eb;
+          color: #9ca3af;
+          cursor: default;
+        }
+        .btn-publish:not(:disabled) {
+          background: #D4AF37;
+          color: #000;
+        }
+        .btn-publish:not(:disabled):hover { opacity: 0.88; }
+
+        .btn-archive {
+          display: inline-flex;
+          align-items: center;
+          padding: 8px 14px;
+          font-size: 12px;
+          font-family: inherit;
+          font-weight: 500;
+          white-space: nowrap;
+          background: #fff;
+          border: 1px solid #d0d0d0;
+          border-radius: 6px;
+          cursor: pointer;
+          color: #333;
+        }
+        .btn-archive:disabled { color: #aaa; cursor: default; }
+        .btn-archive:not(:disabled):hover { border-color: #aaa; }
+
+        .publish-hint {
+          font-size: 11px;
+          color: #aaa;
+          font-style: italic;
+          white-space: nowrap;
+        }
+      `}</style>
+
+      <NavBar />
+
+      <div style={{ background: "var(--paper)", minHeight: "calc(100vh - 120px)" }}>
+        {/* ── Centered container ── */}
+        <div className="container" style={{ padding: "28px 0 48px" }}>
+
+          {/* ── Mobile: score panel toggle button ── */}
+          <button
+            className="review-mobile-toggle"
+            onClick={() => setPanelOpen(o => !o)}
+            style={{
+              display: "none", // overridden by CSS above at mobile
+              alignItems: "center", justifyContent: "space-between",
+              width: "100%", padding: "12px 16px",
+              background: "#fafafa", border: "1px solid var(--line)",
+              borderRadius: "8px", marginBottom: "16px",
+              cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            <span style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555" }}>
+              Signal Intelligence {scorePct !== null ? `· Score ${scorePct}` : ""}
+            </span>
+            <span style={{ fontSize: "12px", color: "#aaa" }}>{panelOpen ? "▲ Hide" : "▼ Show"}</span>
+          </button>
+
+          {/* ── Mobile: collapsible panel above editor ── */}
+          {panelOpen && (
+            <div className="review-panel-mobile" style={{ marginBottom: "20px" }}>
+              <IntelPanel />
+            </div>
+          )}
+
+          <div className="review-layout">
+            {/* ── LEFT: editor ── */}
             <div>
               <h1 style={{ fontFamily: "Cinzel, serif", fontSize: "20px", marginBottom: "6px" }}>Edit & Publish Brief</h1>
-              <p style={{ color: "var(--muted)", fontSize: "12px", marginBottom: signal.oldest_published_at ? "8px" : "24px" }}>
+              <p style={{ color: "var(--muted)", fontSize: "12px", marginBottom: signal.oldest_published_at ? "8px" : "20px" }}>
                 Signal detected {signal.created_at?.slice(0, 10)} · {signal.item_count} source item{signal.item_count !== 1 ? "s" : ""}
               </p>
 
-              {/* ── Source publish date warning ── */}
+              {/* Stale source warning */}
               {signal.oldest_published_at && (
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: "6px",
-                  marginBottom: "24px",
+                  marginBottom: "20px",
                   padding: sourceIsStale ? "4px 10px" : "2px 0",
                   background: sourceIsStale ? "#fef2f2" : "transparent",
                   border: sourceIsStale ? "1px solid #fca5a5" : "none",
                   borderRadius: "6px",
                 }}>
                   {sourceIsStale && <span style={{ fontSize: "13px" }}>⚠️</span>}
-                  <span style={{
-                    fontSize: "12px",
-                    color: sourceIsStale ? "#c62828" : "var(--muted)",
-                    fontWeight: sourceIsStale ? 700 : 400,
-                  }}>
-                    Source published {new Date(signal.oldest_published_at).toLocaleDateString("en-US", {
-                      month: "short", day: "numeric", year: "numeric",
-                    })}
+                  <span style={{ fontSize: "12px", color: sourceIsStale ? "#c62828" : "var(--muted)", fontWeight: sourceIsStale ? 700 : 400 }}>
+                    Source published {new Date(signal.oldest_published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                     {sourceIsStale && ` — ${Math.floor(sourceAgeDays!)} days ago`}
                   </span>
                 </div>
               )}
 
-              {/* ── Source context ── */}
+              {/* Source context */}
               {(signal.source_items ?? []).length > 0 && (
-                <div style={{ background: "#fafafa", border: "1px solid #e6e6e6", borderRadius: "8px", padding: "16px", marginBottom: "24px" }}>
+                <div style={{ background: "#fafafa", border: "1px solid #e6e6e6", borderRadius: "8px", padding: "16px", marginBottom: "20px" }}>
                   <div style={{ fontSize: "11px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#888", marginBottom: "12px", fontFamily: "var(--font-jakarta), sans-serif" }}>
                     Source Items
                   </div>
@@ -502,6 +787,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 </div>
               )}
 
+              {/* Title field */}
               <div className="field">
                 <label>Published Title</label>
                 <input
@@ -511,45 +797,34 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 />
               </div>
 
-              {/* ── Action row ── */}
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "0 0 16px", flexWrap: "wrap" }}>
+              {/* ── Action row — no pipe, draft is royal blue, publish gated on body ── */}
+              <div className="action-row">
                 <button
-                  className="btn-light"
+                  className="btn-draft"
                   onClick={handleDraft}
                   disabled={drafting || saving}
-                  style={{ fontSize: "12px", whiteSpace: "nowrap" }}
                 >
                   {drafting ? "Drafting…" : body ? "↺ Redraft" : "✦ Get AI Draft"}
                 </button>
 
-                <div style={{ width: "1px", height: "24px", background: "#d0d0d0", flexShrink: 0 }} />
-
                 <button
+                  className="btn-publish"
                   onClick={handlePublish}
-                  disabled={saving || !title.trim() || drafting}
-                  style={{
-                    padding: "8px 16px", fontSize: "12px", fontFamily: "inherit",
-                    background: saving || !title.trim() || drafting ? "#e5e7eb" : "#D4AF37",
-                    color: saving || !title.trim() || drafting ? "#9ca3af" : "#000",
-                    border: "none", borderRadius: "6px",
-                    cursor: saving || !title.trim() || drafting ? "default" : "pointer",
-                    fontWeight: 700, letterSpacing: "0.06em", whiteSpace: "nowrap",
-                    transition: "background 0.15s",
-                  }}
+                  disabled={!canPublish}
+                  title={!body.trim() ? "Add a body to the brief before publishing" : undefined}
                 >
                   {saving ? "Publishing…" : "Publish →"}
                 </button>
 
+                {/* Subtle hint when body is empty */}
+                {!body.trim() && !drafting && (
+                  <span className="publish-hint">Draft or write a body first</span>
+                )}
+
                 <button
+                  className="btn-archive"
                   onClick={handleArchive}
                   disabled={saving || drafting}
-                  style={{
-                    padding: "8px 14px", fontSize: "12px", fontFamily: "inherit",
-                    background: "#fff", color: saving || drafting ? "#aaa" : "#333",
-                    border: "1px solid #d0d0d0", borderRadius: "6px",
-                    cursor: saving || drafting ? "default" : "pointer",
-                    fontWeight: 500, whiteSpace: "nowrap",
-                  }}
                 >
                   Archive
                 </button>
@@ -571,15 +846,13 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 {publishError && <span style={{ fontSize: "11px", color: "#c62828" }}>{publishError}</span>}
               </div>
 
+              {/* Body textarea */}
               <div className="field">
                 <label>Brief Body (Markdown)</label>
                 <textarea
                   ref={textareaRef}
                   value={body}
-                  onChange={(e) => {
-                    setBody(e.target.value);
-                    growTextarea();
-                  }}
+                  onChange={(e) => { setBody(e.target.value); growTextarea(); }}
                   placeholder="Write the brief here, or click Get AI Draft for a starting point."
                   style={{
                     minHeight: "120px",
@@ -595,7 +868,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 />
               </div>
 
-              {/* ── Social teaser ── */}
+              {/* Social teaser */}
               <div style={{
                 background: "#fafafa", border: "1px solid #e6e6e6",
                 borderRadius: "6px", padding: "10px 14px", marginTop: "12px",
@@ -639,184 +912,10 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
 
-            {/* ── Right: intelligence panel ── */}
-            <div style={{ position: "sticky", top: "24px" }}>
-              <div className="card" style={{ padding: "22px" }}>
-                <div style={{ fontSize: "11px", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "16px" }}>
-                  Signal Intelligence
-                </div>
-
-                {/* Overall readiness */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: "10px",
-                  background: readiness.color === "green" ? "rgba(34,197,94,0.08)" : readiness.color === "yellow" ? "rgba(234,179,8,0.08)" : readiness.color === "red" ? "rgba(239,68,68,0.08)" : "#f5f5f5",
-                  border: `1px solid ${readinessStyle.border}22`,
-                  borderRadius: "8px", padding: "10px 14px", marginBottom: "18px",
-                }}>
-                  <span style={{
-                    width: "12px", height: "12px", borderRadius: "50%", flexShrink: 0,
-                    background: readinessStyle.bg, border: `1px solid ${readinessStyle.border}`,
-                    boxShadow: readiness.color !== "none" ? `0 0 6px ${readinessStyle.glow}` : "none",
-                  }} />
-                  <div>
-                    <div style={{
-                      fontSize: "13px", fontWeight: 700, fontFamily: "Cinzel, serif", letterSpacing: "0.08em",
-                      color: readiness.color === "green" ? "#166534" : readiness.color === "yellow" ? "#854d0e" : readiness.color === "red" ? "#991b1b" : "#555",
-                    }}>
-                      {readiness.label}
-                    </div>
-                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>{readiness.desc}</div>
-                  </div>
-                </div>
-
-                {/* Signal score + age */}
-                <div style={{ display: "flex", alignItems: "baseline", gap: "8px", marginBottom: "4px" }}>
-                  <span style={{ fontFamily: "Cinzel, serif", fontSize: "42px", fontWeight: 600, color: "var(--gold)", lineHeight: 1 }}>
-                    {scorePct !== null ? scorePct : "—"}
-                  </span>
-                  <span style={{ fontSize: "13px", color: "var(--muted)" }}>/ 100</span>
-                </div>
-                <div style={{ fontSize: "11px", color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "4px" }}>
-                  Signal Score
-                </div>
-                {sourceAgeDays !== null && (
-                  <div style={{ fontSize: "11px", marginBottom: "14px" }}>
-                    <span style={{ color: "#999", letterSpacing: "0.06em", textTransform: "uppercase", marginRight: "4px" }}>Age</span>
-                    <span style={{
-                      fontWeight: 600,
-                      color: sourceAgeDays > 5 ? "#c0392b" : sourceAgeDays > 3 ? "#d97706" : "#166534",
-                    }}>
-                      {fmtAgeDays(sourceAgeDays)}
-                    </span>
-                  </div>
-                )}
-
-                {/* Domain pills */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "18px" }}>
-                  {domains.map((d) => (
-                    <span key={d} style={{
-                      fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em",
-                      padding: "3px 8px", borderRadius: "4px",
-                      border: `1px solid ${DOMAIN_COLORS[d] ?? "#999"}`,
-                      color: DOMAIN_COLORS[d] ?? "#999", background: "transparent",
-                    }}>
-                      {d}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Domain bars */}
-                <div style={{ marginBottom: "18px" }}>
-                  {[
-                    { label: "Power", value: signal.power_score, cls: "power" },
-                    { label: "Money", value: signal.money_score, cls: "money" },
-                    { label: "Rules", value: signal.rules_score, cls: "rules" },
-                  ].map(({ label, value, cls }) => (
-                    <div key={label} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-                      <span className="domain-bar-label">{label}</span>
-                      <div className="domain-bar-track" style={{ flex: 1 }}>
-                        <div className={`domain-bar-fill ${cls}`} style={{ width: value !== null && !isNaN(value) ? `${Math.min((value / 5) * 100, 100)}%` : "0%" }} />
-                      </div>
-                      <span className="domain-bar-value" style={{ width: "28px" }}>
-                        {value !== null && !isNaN(value) ? value.toFixed(1) : "—"}
-                      </span>
-                      <StoplightBubble color={getStoplight("domain", value)} />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Score breakdown — new fields at top, all with tooltips */}
-                <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", marginBottom: "14px" }}>
-                  <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "10px" }}>
-                    Score Breakdown
-                  </div>
-
-                  {scoreRows.map(({ label, value, key }) => (
-                    <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", marginBottom: "7px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                        <span style={{ color: "var(--muted)" }}>{label}</span>
-                        <ScoreTooltip tooltipKey={key} />
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums", minWidth: "24px", textAlign: "right" }}>
-                          {fmt(value)}
-                        </span>
-                        <StoplightBubble color={getStoplight(key, value)} />
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Divider between new and existing rows */}
-                  <div style={{ borderTop: "1px dashed #eee", margin: "8px 0" }} />
-                </div>
-
-                {/* Legend */}
-                <div style={{ background: "#f9f9f9", borderRadius: "6px", padding: "8px 12px", marginBottom: "14px", display: "flex", gap: "14px", flexWrap: "wrap" }}>
-                  {[
-                    { color: "green" as const, label: "Publish" },
-                    { color: "yellow" as const, label: "Consider" },
-                    { color: "red" as const, label: "Hold" },
-                  ].map(({ color, label }) => (
-                    <div key={color} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                      <StoplightBubble color={color} />
-                      <span style={{ fontSize: "10px", color: "var(--muted)", letterSpacing: "0.06em" }}>{label}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Sources */}
-                <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", fontSize: "12px", color: "var(--muted)", marginBottom: "16px" }}>
-                  {signal.ai_confidence !== null && !isNaN(signal.ai_confidence) && (
-                    <div style={{ marginBottom: "8px" }}>
-                      AI Confidence: <strong style={{ color: "var(--ink)" }}>{Math.round(signal.ai_confidence * 100)}%</strong>
-                    </div>
-                  )}
-                  <div>
-                    <div style={{ marginBottom: "6px" }}>Sources:</div>
-                    {uniqueSources.length > 0 ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        {uniqueSources.map((s: SourceItem) => {
-                          const tier = getTier(s.source_type);
-                          return (
-                            <div key={s.source_name} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                              <strong style={{ color: "var(--ink)", fontSize: "12px" }}>{s.source_name}</strong>
-                              {tier && (
-                                <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", padding: "2px 6px", borderRadius: "4px", background: tier.bg, color: tier.color }}>
-                                  {tier.label}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <strong style={{ color: "var(--ink)" }}>{signal.item_count} item{signal.item_count !== 1 ? "s" : ""}</strong>
-                    )}
-                  </div>
-                </div>
-
-                {/* Entities */}
-                {(signal.entity_names ?? []).length > 0 && (
-                  <div style={{ borderTop: "1px solid #eee", paddingTop: "14px", marginBottom: "14px" }}>
-                    <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "8px" }}>Entities</div>
-                    <div className="queue-tags">
-                      {(signal.entity_names ?? []).map((e) => <span key={e} className="tag-pill">{e}</span>)}
-                    </div>
-                  </div>
-                )}
-
-                {/* Tags */}
-                {(signal.tag_names ?? []).length > 0 && (
-                  <div style={{ borderTop: "1px solid #eee", paddingTop: "14px" }}>
-                    <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: "8px" }}>Tags</div>
-                    <div className="queue-tags">
-                      {(signal.tag_names ?? []).map((t) => <span key={t} className="tag-pill" style={{ background: "#f5f5f5" }}>{t.replace(/_/g, " ")}</span>)}
-                    </div>
-                  </div>
-                )}
-              </div>
+            {/* ── RIGHT: desktop sticky intelligence panel ── */}
+            <div className="review-panel-desktop" style={{ position: "sticky", top: "24px" }}>
+              <IntelPanel />
             </div>
-
           </div>
         </div>
       </div>

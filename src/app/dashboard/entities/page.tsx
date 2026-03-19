@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase";
+import { createServiceClient } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import Footer from "@/components/Footer";
@@ -26,7 +26,8 @@ function fmt(dt: string | null) {
 
 export default async function EntitiesPage() {
   await requireAdmin();
-  const supabase = await createServerSupabaseClient();
+  // ✅ Use service client (bypasses RLS) — this page is admin-only so it's safe
+  const supabase = createServiceClient();
 
   const { data: entitiesRaw, count: entityCount } = await supabase
     .from("entities")
@@ -34,7 +35,7 @@ export default async function EntitiesPage() {
     .order("type")
     .order("name");
 
-  const entities: Entity[] = entitiesRaw ?? [];
+  const entities: Entity[] = (entitiesRaw ?? []) as Entity[];
 
   const typeCounts = entities.reduce((acc, e) => {
     const t = e.type ?? "unknown";
@@ -81,31 +82,37 @@ export default async function EntitiesPage() {
             ))}
           </div>
 
-          <div style={{ border: "1px solid var(--line)", borderRadius: "10px", overflow: "hidden", marginBottom: "48px" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", fontFamily: "var(--font-jakarta), sans-serif" }}>
-              <thead>
-                <tr style={{ background: "#fafafa", borderBottom: "1px solid var(--line)" }}>
-                  {["Name", "Type", "Canonical Key", "Added"].map((h) => (
-                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", letterSpacing: "0.10em", textTransform: "uppercase", color: "#888", fontWeight: 600 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {entities.map((e, i) => (
-                  <tr key={e.id} style={{ borderBottom: i < entities.length - 1 ? "1px solid var(--line)" : "none", background: i % 2 === 0 ? "#ffffff" : "#fafafa" }}>
-                    <td style={{ padding: "10px 14px", fontWeight: 600, color: "#1a1a1a" }}>{e.name}</td>
-                    <td style={{ padding: "10px 14px" }}>
-                      {e.type && (
-                        <span style={{ background: ENTITY_TYPE_COLORS[e.type] ?? "#f5f5f5", color: "#333", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 500 }}>{e.type}</span>
-                      )}
-                    </td>
-                    <td style={{ padding: "10px 14px", color: "#888", fontFamily: "monospace", fontSize: "11px" }}>{e.canonical_key ?? "—"}</td>
-                    <td style={{ padding: "10px 14px", color: "#888", whiteSpace: "nowrap" }}>{fmt(e.created_at)}</td>
+          {entities.length === 0 ? (
+            <div style={{ padding: "48px 0", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+              No entities found.
+            </div>
+          ) : (
+            <div style={{ border: "1px solid var(--line)", borderRadius: "10px", overflow: "hidden", marginBottom: "48px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", fontFamily: "var(--font-jakarta), sans-serif" }}>
+                <thead>
+                  <tr style={{ background: "#fafafa", borderBottom: "1px solid var(--line)" }}>
+                    {["Name", "Type", "Canonical Key", "Added"].map((h) => (
+                      <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", letterSpacing: "0.10em", textTransform: "uppercase", color: "#888", fontWeight: 600 }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {entities.map((e, i) => (
+                    <tr key={e.id} style={{ borderBottom: i < entities.length - 1 ? "1px solid var(--line)" : "none", background: i % 2 === 0 ? "#ffffff" : "#fafafa" }}>
+                      <td style={{ padding: "10px 14px", fontWeight: 600, color: "#1a1a1a" }}>{e.name}</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        {e.type && (
+                          <span style={{ background: ENTITY_TYPE_COLORS[e.type] ?? "#f5f5f5", color: "#333", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 500 }}>{e.type}</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "10px 14px", color: "#888", fontFamily: "monospace", fontSize: "11px" }}>{e.canonical_key ?? "—"}</td>
+                      <td style={{ padding: "10px 14px", color: "#888", whiteSpace: "nowrap" }}>{fmt(e.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
       <Footer />

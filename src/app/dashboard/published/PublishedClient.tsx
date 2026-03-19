@@ -31,6 +31,7 @@ export default function PublishedClient({
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const [rollingBack, setRollingBack] = useState<string | null>(null);
   const [previewTier] = useState<SubscriptionTier>(tier);
   const perms = TIER_PERMISSIONS[previewTier];
   const totalPages = Math.ceil(count / PAGE_SIZE);
@@ -46,6 +47,20 @@ export default function PublishedClient({
 
   function handleDomainFilter(d: SignalDomain | null) { pushParams({ domain: d, page: null }); }
   function handlePageChange(newPage: number) { pushParams({ page: newPage === 0 ? null : String(newPage) }); }
+
+  async function handleRollback(id: string) {
+    if (!confirm("Roll this back to a candidate signal? This will clear the published title, body, and dates so it can be re-edited.")) return;
+    setRollingBack(id);
+    try {
+      const res = await fetch('/api/signals/rollback', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signal_id: id }),
+      });
+      if (res.ok) router.refresh();
+      else alert('Rollback failed. Please try again.');
+    } catch { alert('Rollback failed. Please try again.'); }
+    finally { setRollingBack(null); }
+  }
 
   function paginationBtn(disabled: boolean): React.CSSProperties {
     return {
@@ -165,7 +180,16 @@ export default function PublishedClient({
                     )}
                     <Link href={`/briefs/${sig.id}`} className="read" style={{ display: "block", marginTop: "8px", fontSize: "13px" }}>Read →</Link>
                     {isEditor && (
-                      <Link href={`/dashboard/review/${sig.id}`} className="btn-light" style={{ marginTop: "8px", fontSize: "12px", padding: "6px 10px", display: "inline-block" }}>Edit</Link>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" }}>
+                        <Link href={`/dashboard/review/${sig.id}`} className="btn-light" style={{ fontSize: "12px", padding: "6px 10px", display: "inline-block", textAlign: "center" }}>Edit</Link>
+                        <button
+                          onClick={() => handleRollback(sig.id)}
+                          disabled={rollingBack === sig.id}
+                          style={{ padding: "6px 10px", fontSize: "11px", fontFamily: "inherit", background: "#fff5f5", color: rollingBack === sig.id ? "#aaa" : "#c0392b", border: "1px solid #fecaca", borderRadius: "10px", cursor: rollingBack === sig.id ? "default" : "pointer", fontWeight: 600, letterSpacing: "0.04em", transition: "border-color 0.15s" }}
+                        >
+                          {rollingBack === sig.id ? "Rolling back…" : "↩ Rollback"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </article>

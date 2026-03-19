@@ -38,6 +38,8 @@ export default function ArchiveClient({
   const perms = TIER_PERMISSIONS[previewTier];
   const totalPages = Math.ceil(count / PAGE_SIZE);
 
+  const [rollingBack, setRollingBack] = useState<string | null>(null);
+
   function pushParams(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
@@ -52,6 +54,20 @@ export default function ArchiveClient({
   function handleDateFrom(val: string) { pushParams({ from: val || null, page: null }); }
   function handleDateTo(val: string) { pushParams({ to: val || null, page: null }); }
   function handleClearDates() { pushParams({ from: null, to: null, page: null }); }
+
+  async function handleRollback(id: string) {
+    if (!confirm("Roll this back to a candidate signal? This will clear the archived status and all published fields so it can be re-reviewed.")) return;
+    setRollingBack(id);
+    try {
+      const res = await fetch('/api/signals/rollback', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signal_id: id }),
+      });
+      if (res.ok) router.refresh();
+      else alert('Rollback failed. Please try again.');
+    } catch { alert('Rollback failed. Please try again.'); }
+    finally { setRollingBack(null); }
+  }
 
   function paginationBtn(disabled: boolean): React.CSSProperties {
     return { background: "#1a1a1a", border: "1px solid #333", color: disabled ? "#444" : "var(--gold)", fontSize: "12px", padding: "6px 14px", cursor: disabled ? "default" : "pointer" };
@@ -174,7 +190,16 @@ export default function ArchiveClient({
                         <div style={{ color: "#444", fontSize: "22px", fontWeight: "bold" }}>—</div>
                       )}
                       {isEditor && (
-                        <Link href={`/dashboard/review/${sig.id}`} className="btn-light" style={{ marginTop: "10px", fontSize: "12px", padding: "8px 12px", display: "inline-block" }}>Edit & Publish</Link>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "10px" }}>
+                          <Link href={`/dashboard/review/${sig.id}`} className="btn-light" style={{ fontSize: "12px", padding: "8px 12px", display: "inline-block", textAlign: "center" }}>Edit & Publish</Link>
+                          <button
+                            onClick={() => handleRollback(sig.id)}
+                            disabled={rollingBack === sig.id}
+                            style={{ padding: "6px 12px", fontSize: "11px", fontFamily: "inherit", background: "#fff5f5", color: rollingBack === sig.id ? "#aaa" : "#c0392b", border: "1px solid #fecaca", borderRadius: "10px", cursor: rollingBack === sig.id ? "default" : "pointer", fontWeight: 600, letterSpacing: "0.04em", transition: "border-color 0.15s" }}
+                          >
+                            {rollingBack === sig.id ? "Rolling back…" : "↩ Rollback"}
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

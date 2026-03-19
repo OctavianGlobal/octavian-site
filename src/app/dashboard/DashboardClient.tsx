@@ -185,8 +185,34 @@ export default function DashboardClient({
     return "Upgrade to Analyst for unlimited archive access and 3D Globe visualization";
   }
 
+  const [signUpOpen, setSignUpOpen] = useState(false);
+
   return (
     <>
+      {/* ── Hidden sign-up trigger: invisible 20×20 hotspot, fixed top-left ── */}
+      <div
+        onClick={() => setSignUpOpen(true)}
+        style={{ position: "fixed", top: 0, left: 0, width: "20px", height: "20px", zIndex: 9999, cursor: "default", background: "transparent" }}
+        aria-hidden="true"
+      />
+
+      {/* ── Sign-up modal ── */}
+      {signUpOpen && (
+        <div onClick={() => setSignUpOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: "12px", padding: "40px 36px", width: "100%", maxWidth: "400px", boxShadow: "0 24px 64px rgba(0,0,0,0.4)", fontFamily: "var(--font-jakarta), sans-serif" }}>
+            <div style={{ textAlign: "center", marginBottom: "28px" }}>
+              <svg width="36" height="42" viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: "12px" }}>
+                <path d="M24 2L44 10V28C44 40 34 50 24 54C14 50 4 40 4 28V10L24 2Z" stroke="#D4AF37" strokeWidth="1.5" fill="none" />
+                <path d="M24 12L36 17V28C36 35.5 30.5 42 24 44.5C17.5 42 12 35.5 12 28V17L24 12Z" fill="#D4AF37" fillOpacity="0.1" stroke="#D4AF37" strokeWidth="0.75" />
+              </svg>
+              <h2 style={{ fontSize: "20px", fontFamily: "Cinzel, serif", letterSpacing: "0.12em", color: "#1a1a1a", margin: 0 }}>Create Account</h2>
+              <p style={{ fontSize: "13px", color: "#888", marginTop: "6px" }}>Join Octavian Global Intelligence</p>
+            </div>
+            <SignUpForm onClose={() => setSignUpOpen(false)} />
+          </div>
+        </div>
+      )}
+
       {/* ── Masthead ── */}
       <div style={{ background: "#0a0a0a", paddingTop: "82px", paddingBottom: "28px", textAlign: "center", borderBottom: "1px solid #1a1a1a" }}>
         <div className="container">
@@ -320,30 +346,7 @@ export default function DashboardClient({
                       )}
                     </div>
 
-                    {/* ── Item provenance row: published, fetched, age ── */}
-                    <div style={{
-                      display: "flex", gap: "16px", flexWrap: "wrap",
-                      margin: "0 0 8px",
-                      fontFamily: "var(--font-jakarta), sans-serif",
-                    }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                        <span style={{ color: "#999", letterSpacing: "0.06em", textTransform: "uppercase", marginRight: "4px" }}>Published</span>
-                        <span style={{ color: "var(--ink)", fontWeight: 500 }}>{fmtDate(sig.primary_published_at)}</span>
-                      </span>
-                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                        <span style={{ color: "#999", letterSpacing: "0.06em", textTransform: "uppercase", marginRight: "4px" }}>Fetched</span>
-                        <span style={{ color: "var(--ink)", fontWeight: 500 }}>{fmtDate(sig.primary_fetched_at)}</span>
-                      </span>
-                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                        <span style={{ color: "#999", letterSpacing: "0.06em", textTransform: "uppercase", marginRight: "4px" }}>Age</span>
-                        <span style={{
-                          color: sig.primary_item_age !== null && sig.primary_item_age > 3 ? "#c0392b" : "var(--ink)",
-                          fontWeight: 500,
-                        }}>
-                          {fmtAge(sig.primary_item_age)}
-                        </span>
-                      </span>
-                    </div>
+
 
                     {/* ── Expanded domain scores ── */}
                     {expanded === sig.id && perms.canViewDomainScores && (
@@ -582,6 +585,80 @@ function AdvancedArchiveTool({ onComplete }: { onComplete: () => void }) {
           {error && <div style={{ marginTop: "10px", fontSize: "12px", color: "#991b1b", fontFamily: "var(--font-jakarta), sans-serif" }}>{error}</div>}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── SignUpForm Component ──────────────────────────────────────────────────────
+
+function SignUpForm({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(true);
+      } else {
+        setError(data.error ?? "Sign-up failed. Please try again.");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (success) {
+    return (
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: "32px", marginBottom: "12px" }}>✓</div>
+        <p style={{ color: "#166534", fontWeight: 600, fontSize: "14px", marginBottom: "6px" }}>Account created!</p>
+        <p style={{ color: "#888", fontSize: "13px", marginBottom: "20px" }}>Check your email to confirm your account.</p>
+        <button onClick={onClose} style={{ padding: "10px 24px", background: "#1a1a1a", color: "#D4AF37", border: "none", borderRadius: "8px", fontSize: "13px", cursor: "pointer", fontWeight: 600, letterSpacing: "0.06em" }}>Close</button>
+      </div>
+    );
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "10px 12px", border: "1px solid #d0d0d0", borderRadius: "8px",
+    fontSize: "14px", color: "#1a1a1a", background: "#fff", fontFamily: "inherit", boxSizing: "border-box",
+    outline: "none", marginBottom: "12px", display: "block",
+  };
+
+  return (
+    <div>
+      <input type="text" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+      <input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+      <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+      {error && <p style={{ fontSize: "12px", color: "#c0392b", marginBottom: "10px", marginTop: "-4px" }}>{error}</p>}
+      <button
+        onClick={handleSubmit}
+        disabled={submitting || !email || !password}
+        style={{
+          width: "100%", padding: "12px", background: submitting || !email || !password ? "#d0d0d0" : "#1a1a1a",
+          color: submitting || !email || !password ? "#888" : "#D4AF37",
+          border: "none", borderRadius: "8px", fontSize: "14px", cursor: submitting || !email || !password ? "default" : "pointer",
+          fontWeight: 700, letterSpacing: "0.08em", fontFamily: "Cinzel, serif", transition: "all 0.15s",
+        }}
+      >
+        {submitting ? "Creating account…" : "Create Account"}
+      </button>
+      <button onClick={onClose} style={{ width: "100%", marginTop: "10px", padding: "10px", background: "none", border: "1px solid #e0e0e0", borderRadius: "8px", fontSize: "13px", color: "#888", cursor: "pointer", fontFamily: "inherit" }}>
+        Cancel
+      </button>
     </div>
   );
 }
